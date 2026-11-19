@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 const MCP_EXAMPLE = `{
   "mcpServers": {
     "nuluvium": {
-      "command": "node",
-      "args": ["mcp/src/server.ts"],
+      "command": "npx",
+      "args": ["-y", "@nuluvium/mcp"],
       "env": {
         "NULUVIUM_MNEMONIC": "\${NULUVIUM_MNEMONIC}",
         "NULUVIUM_NETWORK": "robinhood-testnet"

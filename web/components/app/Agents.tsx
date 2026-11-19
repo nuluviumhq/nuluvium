@@ -9,8 +9,8 @@ import { useSession } from "./session";
 const MCP_CONFIG = `{
   "mcpServers": {
     "nuluvium": {
-      "command": "node",
-      "args": ["mcp/src/server.ts"],
+      "command": "npx",
+      "args": ["-y", "@nuluvium/mcp"],
       "env": {
         "NULUVIUM_MNEMONIC": "\${NULUVIUM_MNEMONIC}",
         "NULUVIUM_NETWORK": "robinhood-testnet"
@@ -64,7 +64,7 @@ export function Agents() {
               <div><span className="name"><span className="n">03</span>Ask in plain words</span><span className="claim-state">&quot;3 pieces over 10 min&quot;</span></div>
             </div>
             <button className="button full" type="button" onClick={() => void copyConfig()}>Copy MCP config</button>
-            <p className="fine">The agent&#39;s secret makes its own shielded balance and fresh addresses, and never leaves its machine. Testnet: the server runs from the Nuluvium source code; an npm package for one-line installs comes before mainnet.</p>
+            <p className="fine">The agent&#39;s secret makes its own shielded balance and fresh addresses, and never leaves its machine. Testnet. Run <code>npx -y @nuluvium/mcp --prepare</code> once first: it installs the server and its circuit files.</p>
           </section>
         </div>
 

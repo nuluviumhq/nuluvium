@@ -7,9 +7,6 @@ sent at random times, each bought from a fresh address through the Nuluvium rela
 It runs **on the agent's own machine**: the secret, the notes and the order schedule never leave it.
 Privacy is from other readers of the chain, not from Robinhood.
 
-> **Not on npm yet.** The package is built and tested but not published; until then, run the server
-> from the source code ([docs/mcp.md](https://github.com/nuluviumhq/nuluvium/blob/main/docs/mcp.md)).
-
 **Testnet only for now** (Robinhood Chain testnet, test tokens). Deposits are capped at 1,000 USDG
 each until the audit.
 

@@ -95,15 +95,17 @@ cd web && npm install && npm run dev
 
 ## Use it from an AI agent
 
-The repository root has a `.mcp.json` for Claude Code. Give the agent its own testnet mnemonic in
-its environment, never in a file:
+The MCP server is on npm as [`@nuluvium/mcp`](https://www.npmjs.com/package/@nuluvium/mcp). Once:
+`npx -y @nuluvium/mcp --prepare` (installs it and downloads the circuit files), then add
+`"command": "npx", "args": ["-y", "@nuluvium/mcp"]` to your MCP client (setup in [mcp/README.md](mcp/README.md)).
+Give the agent its own testnet mnemonic in its environment, never in a file:
 
 ```bash
 export NULUVIUM_MNEMONIC="twelve words of a new testnet mnemonic"
 export NULUVIUM_RPC_URL="https://your-testnet-rpc"   # optional, if your network blocks robinhood.com
 ```
 
-Then start the MCP client from the repository root. The server offers `get_balance`, `deposit`,
+From a clone of this repository, the root `.mcp.json` runs the server from source instead. The server offers `get_balance`, `deposit`,
 `route_order`, `cancel_order`, `get_orders` and `get_fills`. Details: [docs/mcp.md](docs/mcp.md).
 
 ## Status

@@ -38,20 +38,22 @@ wallet holds the USDG and at least 0.00001 ETH; otherwise it answers with what t
 - stdout carries the protocol; the server sends all logs to stderr. It deletes the mnemonic from its
   environment after reading it and never returns it.
 
-## Use it in Claude Code (testnet)
-1. Once: `cd testnet && npm install && node setup-artifacts.mjs`, and `npm install` in `sdk/` and `mcp/`.
-2. Set the agent's secret in your shell (testnet mnemonic, not a real wallet), e.g. in PowerShell
-   `$env:NULUVIUM_MNEMONIC = "<twelve words>"`, then start `claude` from the repo root.
-   `.mcp.json` passes it through as `${NULUVIUM_MNEMONIC}`; the file itself holds no secret.
-   If your network blocks `*.robinhood.com`, also set
-   `$env:NULUVIUM_RPC_URL` to your own testnet RPC (e.g. Alchemy), or use a VPN.
-3. Approve the `nuluvium` server when Claude Code asks, then try:
+## Use it (testnet)
+1. Once: `npx -y @nuluvium/mcp --prepare` (installs the package from npm and downloads the circuit
+   files into `~/.nuluvium/artifacts`, then exits; no secret needed).
+2. Add the server to the MCP client (`.mcp.json` for Claude Code, `claude_desktop_config.json` for
+   Claude Desktop, or any other client's MCP settings):
+   `"nuluvium": { "command": "npx", "args": ["-y", "@nuluvium/mcp"], "env": { "NULUVIUM_MNEMONIC": "${NULUVIUM_MNEMONIC}", "NULUVIUM_NETWORK": "robinhood-testnet" } }`.
+3. Set the agent's secret in its environment (testnet mnemonic, not a real wallet), e.g. in
+   PowerShell `$env:NULUVIUM_MNEMONIC = "<twelve words>"`, then start the client. If your network
+   blocks `*.robinhood.com`, also set `NULUVIUM_RPC_URL` to your own testnet RPC, or use a VPN.
+4. Approve the `nuluvium` server when the client asks, then try:
    "Check my Nuluvium balance, then buy 5 USDG of MSTK in 3 pieces over 4 minutes."
 
-Claude Desktop: add the same block to `claude_desktop_config.json` with an absolute path to
-`mcp/src/server.ts` and the mnemonic in `env` (that file stays on your machine).
+From a clone of this repository, the root `.mcp.json` runs the server from source instead
+(`npm install` in `sdk/` and `mcp/`, and `node setup-artifacts.mjs` in `testnet/` once).
 
-## npm package `@nuluvium/mcp` (built, not published yet)
+## npm package `@nuluvium/mcp` (published 2026-11-19, 0.1.0)
 - `npm pack` in `mcp/` runs `prepack`: `tsconfig.build.json` compiles `src/` and the SDK sources it
   imports into `dist/` (Node does not run TypeScript from `node_modules`), and copies `LICENSE`.
   The package is about 27 kB, 23 files; `mcp/README.md` is its npm page.
@@ -71,10 +73,13 @@ Claude Desktop: add the same block to `claude_desktop_config.json` with an absol
   ([1](https://explorer.testnet.chain.robinhood.com/tx/0x86113c1411aa2498696ce2caa58185fb8fc00a3eca953830940962a2ce2728c5),
   [2](https://explorer.testnet.chain.robinhood.com/tx/0x278af22267e83dc96117c2347cdcae95860b07fdc69df3f2e3364ce8dcbdd8fd)),
   both done. `npx <file path>` does not work (npx treats a path as a command); the registry name will.
-- To publish: an npm account and a free `nuluvium` organization (the user's); then `npm publish` from
-  `mcp/`. After it: check `npx -y @nuluvium/mcp --prepare` from the registry, remove the "Not on npm
-  yet" note, and switch the setup in README, this file, /docs/agents, /for-agents and the app's Agents
-  page to npx.
+- Published 2026-11-19 as 0.1.0 by the npm account `nuluvium` (brand email, 2FA). npm's staged
+  publishing also left a `0.0.0-stage` placeholder version (2 files) next to it; `latest` is 0.1.0.
+  Checked from the registry with an empty cache: `npx -y @nuluvium/mcp --prepare` in 60 s (install +
+  circuit files); then the server over stdio via `npx -y @nuluvium/mcp`: connected in 52 s cold, 14 s
+  warm, 6 tools, `get_balance` read the test wallet.
+- Next version: bump `version` in `mcp/package.json`, then `npm publish --access public` from `mcp/`
+  (the account owner runs it: npm asks for 2FA).
 
 ## Tests
 - `cd mcp && npm test`: order status, store persistence, deposit rules, note approval and choice, circuit file download.

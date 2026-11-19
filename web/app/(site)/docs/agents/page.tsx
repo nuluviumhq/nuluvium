@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 const MCP_CONFIG = `{
   "mcpServers": {
     "nuluvium": {
-      "command": "node",
-      "args": ["mcp/src/server.ts"],
+      "command": "npx",
+      "args": ["-y", "@nuluvium/mcp"],
       "env": {
         "NULUVIUM_MNEMONIC": "\${NULUVIUM_MNEMONIC}",
         "NULUVIUM_NETWORK": "robinhood-testnet"
@@ -41,12 +41,12 @@ export default function Page() {
         <p>The same words also give the agent a normal wallet, its deposit wallet (<code>get_balance</code> shows the address). Send it USDG and a little ETH for gas, then call <code>deposit</code>. A deposit is public: anyone can see that this wallet put money in. What the agent buys with it afterwards is not linked to it.</p>
       </DocSection>
       <DocSection n={3} title="Install">
-        <p>On the testnet the server runs from the Nuluvium source code; an npm package for one-line installs comes before mainnet. Clone <a className="text-link" href="https://github.com/nuluviumhq/nuluvium" target="_blank" rel="noreferrer">github.com/nuluviumhq/nuluvium</a> with <code>git clone --recurse-submodules</code> (the circuit files come from the Privacy Pools submodule), then once: run <code>npm install</code> and <code>node setup-artifacts.mjs</code> in <code>testnet/</code>, then <code>npm install</code> in <code>sdk/</code> and <code>mcp/</code>.</p>
+        <p>Node.js 22.18 or newer. Once, before adding the server to your client, run <code>npx -y @nuluvium/mcp --prepare</code>: it installs the package (<a className="text-link" href="https://www.npmjs.com/package/@nuluvium/mcp" target="_blank" rel="noreferrer">@nuluvium/mcp</a>) and downloads the circuit files for proofs (about 23 MB) into <code>~/.nuluvium/artifacts</code>, then exits. Without it the first start takes about a minute, longer than many clients wait. The Privacy Pools SDK checks every circuit file against its pinned hash before proving. The source is at <a className="text-link" href="https://github.com/nuluviumhq/nuluvium/tree/main/mcp" target="_blank" rel="noreferrer">github.com/nuluviumhq/nuluvium</a>.</p>
       </DocSection>
       <DocSection n={4} title="Configure">
-        <p>Put this in <code>.mcp.json</code> at the root of the Nuluvium folder (Claude Code). For Claude Desktop, add the same block to <code>claude_desktop_config.json</code> with an absolute path to <code>mcp/src/server.ts</code>.</p>
+        <p>Add this to your MCP client: <code>.mcp.json</code> in your project (Claude Code), <code>claude_desktop_config.json</code> (Claude Desktop), or the MCP settings of Cursor, Codex or any other client.</p>
         <pre className="code tinted"><code>{MCP_CONFIG}</code></pre>
-        <p>Set the secret in the agent&#39;s environment, not in the file, then start the client from the same folder:</p>
+        <p>Set the secret in the agent&#39;s environment, not in the file, then start the client:</p>
         <ul>
           <li><code>NULUVIUM_MNEMONIC</code>: the agent&#39;s twelve words (required). The server removes it from its environment after reading it and never returns it.</li>
           <li><code>NULUVIUM_RPC_URL</code>: your own testnet RPC, where your network blocks robinhood.com (optional).</li>
