@@ -9,8 +9,10 @@ import { useEffect, useState } from "react";
 import { formatUsdg, parseUsdg, readPieceFee, readRecentPieces, unitsToInput, type PublicPiece } from "@/lib/chain";
 import { STATUS_CLASS, STATUS_LABEL, marble } from "@/lib/format";
 import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
+import { orderLimits } from "@/lib/orderLimits";
 import { TOKENS, expectedOut } from "@/lib/tokens";
 import { explorerTx, shortAddress } from "@/lib/wallet";
+import { Choice } from "./Choice";
 import { MIN_PIECE, START_DELAY_SECONDS, friendlyError, useSession } from "./session";
 
 const WINDOWS = [
@@ -19,6 +21,8 @@ const WINDOWS = [
   { label: "2 h", seconds: 7200 },
   { label: "6 h", seconds: 21600 },
 ];
+
+const PIECE_CHOICES = [3, 5, 8].map((count) => ({ value: count, label: `${count} pieces`, hint: `${count} fresh addresses` }));
 
 /** Quick-fill buttons: share of the largest deposit one order can pay from, in percent. */
 const QUICK_FILL: Array<[string, bigint]> = [["25%", 25n], ["50%", 50n], ["Max", 100n]];
@@ -48,27 +52,12 @@ export function Trade() {
   const receive = fees !== null && amount > fees ? expectedOut(token, amount - fees) : 0n;
   const mine = orders.slice(0, 5);
   const approved = balance.value?.approved;
-  const waitingDeposit = balance.value?.notes.some((note) => note.approval === "waiting") ?? false;
   // One order is paid from one approved deposit that no open order uses (as placeOrder picks it):
   // the largest such deposit is the most one order can spend.
-  const busy = new Set(orders.filter(isOpen).map((order) => order.depositIndex));
-  const maxSpend = balance.value
-    ? balance.value.notes
-        .filter((note) => note.approval === "approved" && !busy.has(note.depositIndex.toString()))
-        .reduce((largest, note) => (note.value > largest ? note.value : largest), 0n)
-    : undefined;
   const minAmount = MIN_PIECE * BigInt(pieces);
-  // Why the order cannot go out yet, shown under the button (null: it can).
-  const blocker =
-    !loggedIn || maxSpend === undefined || amount <= 0n
-      ? null
-      : amount < minAmount
-        ? "small"
-        : amount <= maxSpend
-          ? null
-          : waitingDeposit && (approved ?? 0n) < amount
-            ? "waiting"
-            : "short";
+  // Undefined until the balance has been read once ("reading", never a blocked guess). See lib/orderLimits.ts.
+  const { maxSpend, blocker, busyOrderId } = orderLimits({ notes: balance.value?.notes, openOrders: orders.filter(isOpen), amount, minAmount });
+  const approvedCount = (balance.value?.notes ?? []).filter((note) => note.approval === "approved" && note.value > 0n).length;
   const chosenWindow = WINDOWS.find((item) => item.label === windowLabel)!;
   const gapSeconds = Math.min(30, Math.floor(chosenWindow.seconds / Math.max(1, pieces - 1)));
 
@@ -178,7 +167,7 @@ export function Trade() {
         {/* The order ticket: the rail on desktop, first on phones. */}
         <aside className="desk-rail">
             <form className="app-card ledger" aria-label="Order ticket" onSubmit={submit}>
-              <div className="card-head"><h2 className="title">Your order</h2><span className="mono soft">{!loggedIn ? "Log in to see your balance" : maxSpend === undefined ? <span className="skeleton">…</span> : maxSpend === approved ? `${formatUsdg(maxSpend)} tUSDG ready` : `${formatUsdg(maxSpend)} max per order`}</span></div>
+              <div className="card-head"><h2 className="title">Your order</h2><span className="mono soft">{!loggedIn ? "Not logged in" : maxSpend === undefined ? <span className="skeleton">…</span> : maxSpend === 0n ? "No free deposit" : maxSpend === approved ? `${formatUsdg(maxSpend)} tUSDG ready` : `${formatUsdg(maxSpend)} max per order`}</span></div>
               <div className="form-rows">
                 <div>
                   <span className="name"><span className="n">01</span>Side</span>
@@ -187,12 +176,10 @@ export function Trade() {
                     <button type="button" aria-pressed="false" disabled title="Selling from the app comes later">Sell · soon</button>
                   </span>
                 </div>
-                <label>
-                  <span className="name"><span className="n">02</span>Stock token</span>
-                  <select name="token" value={symbol} onChange={(event) => setSymbol(event.target.value)}>
-                    {TOKENS.map((item) => <option key={item.symbol} value={item.symbol}>{item.symbol}</option>)}
-                  </select>
-                </label>
+                <div>
+                  <span className="name" id="ticket-token"><span className="n">02</span>Stock token</span>
+                  <Choice labelledBy="ticket-token" value={symbol} onChange={setSymbol} options={TOKENS.map((item) => ({ value: item.symbol, label: item.symbol, hint: "Mock stock" }))} />
+                </div>
                 <label>
                   <span className="name"><span className="n">03</span>Amount</span>
                   <span className="value">
@@ -212,20 +199,14 @@ export function Trade() {
                 </span>
               </div>
             ) : null}
-                <label>
-                  <span className="name"><span className="n">04</span>Split into</span>
-                  <select name="pieces" value={pieces} onChange={(event) => setPieces(Number(event.target.value))}>
-                    <option value="3">3 pieces</option>
-                    <option value="5">5 pieces</option>
-                    <option value="8">8 pieces</option>
-                  </select>
-                </label>
-                <label>
-                  <span className="name"><span className="n">05</span>Time window</span>
-                  <select name="window" value={windowLabel} onChange={(event) => setWindowLabel(event.target.value)}>
-                    {WINDOWS.map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
-                  </select>
-                </label>
+                <div>
+                  <span className="name" id="ticket-pieces"><span className="n">04</span>Split into</span>
+                  <Choice labelledBy="ticket-pieces" value={pieces} onChange={setPieces} options={PIECE_CHOICES} />
+                </div>
+                <div>
+                  <span className="name" id="ticket-window"><span className="n">05</span>Time window</span>
+                  <Choice labelledBy="ticket-window" value={windowLabel} onChange={setWindowLabel} options={WINDOWS.map((item) => ({ value: item.label, label: item.label }))} />
+                </div>
                 <div>
                   <span className="name"><span className="n">06</span>You receive, about</span>
                   <span className="value">{formatTokens(receive, token.decimals)} <small>{token.symbol}</small></span>
@@ -238,10 +219,18 @@ export function Trade() {
               <button className="button full" type="submit" disabled={sending || Boolean(blocker)}>{sending ? "Planning…" : loggedIn ? "Route order" : "Log in to route"}</button>
               {blocker === "waiting" ? (
                 <p className="reason" aria-live="polite">Your deposit is waiting for the clean-funds check, usually under a minute. The button unlocks by itself.</p>
+              ) : blocker === "empty" ? (
+                <p className="reason" aria-live="polite">Your shielded balance is empty. <Link className="text-link" href="/app">Deposit on Overview</Link> first; it can be spent once approved, usually within a minute.</p>
+              ) : blocker === "busy" ? (
+                <p className="reason" aria-live="polite">
+                  Your approved {approvedCount === 1 ? "deposit is" : "deposits are"} paying for {busyOrderId ? `open order ${busyOrderId}` : "an open order"}. One deposit pays for one order at a time: wait until it finishes, <Link className="text-link" href="/app/orders">cancel it on Orders</Link>, or <Link className="text-link" href="/app">deposit again</Link>.
+                </p>
+              ) : blocker === "none" ? (
+                <p className="reason" aria-live="polite">None of your deposits is approved for spending. See their status on <Link className="text-link" href="/app">Overview</Link>; a deposit that was not approved can be taken back there.</p>
               ) : blocker === "short" ? (
                 <p className="reason" aria-live="polite">
-              One order pays from one deposit, and your largest free one holds {formatUsdg(maxSpend ?? 0n)} tUSDG. Lower the amount (Max fills it) or <Link className="text-link" href="/app">deposit more on Overview</Link>.
-            </p>
+                  One order pays from one deposit, and your largest free one holds {formatUsdg(maxSpend ?? 0n)} tUSDG. Lower the amount (Max fills it) or <Link className="text-link" href="/app">deposit more on Overview</Link>.
+                </p>
           ) : blocker === "small" ? (
             <p className="reason" aria-live="polite">Each piece is at least {formatUsdg(MIN_PIECE)} tUSDG: {pieces} pieces need {formatUsdg(minAmount)} or more. Raise the amount or pick fewer pieces.</p>
               ) : null}

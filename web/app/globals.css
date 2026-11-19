@@ -1039,6 +1039,22 @@ button.text-link { text-transform: uppercase; }
 .plan-list dt { color: var(--green-70); }
 .plan-list dd { margin: 0; text-align: right; color: var(--green); }
 
+/* Choice: the app's select (components/app/Choice.tsx), in place of the unstyled OS list. */
+.choice { position: relative; }
+.choice-button { display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.15rem 0.1rem 0.15rem 0.5rem; border-radius: 0.25rem; font-family: var(--serif); font-size: 1.5625rem; line-height: 1.2; color: var(--green); transition: background-color 0.2s var(--ease-button); }
+.choice-button:hover, .choice-button[aria-expanded="true"] { background: var(--green-10); }
+.choice-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.choice-chevron { width: 0.45rem; height: 0.45rem; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-0.15rem) rotate(45deg); transition: transform 0.2s var(--ease-button); }
+.choice-button[aria-expanded="true"] .choice-chevron { transform: translateY(0.1rem) rotate(-135deg); }
+.choice-list { position: absolute; right: 0; top: calc(100% + 0.4rem); z-index: 25; min-width: 11rem; max-width: calc(100vw - 2 * var(--safe)); max-height: 18rem; overflow-y: auto; margin: 0; padding: 0.35rem; list-style: none; border-radius: 0.5rem; background: var(--white); box-shadow: inset 0 0 0 1px var(--line), 0 1rem 2rem rgba(12, 54, 40, 0.14); outline: none; }
+.choice-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.55rem 0.75rem; border-radius: 0.3rem; cursor: pointer; font-family: var(--serif); font-size: 1.25rem; line-height: 1.2; color: var(--green); }
+.choice-list li small { font-family: var(--mono); font-size: max(0.6875rem, 11px); letter-spacing: 0.04em; text-transform: uppercase; color: var(--green-70); }
+.choice-list li.active { background: var(--green-10); }
+.choice-list li[aria-selected="true"] { background: var(--green); color: var(--white); }
+.choice-list li[aria-selected="true"] small { color: rgba(255, 255, 255, 0.75); }
+.choice-list li[aria-selected="true"]::after { content: ""; flex: none; width: 0.35rem; height: 0.65rem; margin-left: auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-0.1rem) rotate(45deg); }
+.choice-list li[aria-selected="true"].active { background: #164a37; }
+
 /* Small text: never under 11px (12px on phones). */
 .app-main .fine { font-size: max(0.75rem, 11px); line-height: 1.55; }
 .app-main .mono, .app-main .sample, .app-main .rows th, .app-main .form-rows .value small,
