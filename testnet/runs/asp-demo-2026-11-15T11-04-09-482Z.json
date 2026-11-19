@@ -1,0 +1,44 @@
+{
+  "startedAt": "2026-11-15T11:04:09.482Z",
+  "asp": "https://asp.nuluvium.com",
+  "cases": {
+    "A": {
+      "deposit": "0x9d560ae2bd80864a9347d31c5b856d6a581850be302af4060990d56269a4c9dc",
+      "label": "5887939079596702168673763620437912115895784759425793246740984428678531205060",
+      "status": "approved",
+      "withdrawal": {
+        "tx": "0xb5273db467cde1984d4459e6150ce56e5d7a7b1bc47500bff5226895e44cadb9",
+        "fresh": "0xfA7BB60bBdff8ECfec2666Caf6C1c9E1dD82796e",
+        "received": "9950000",
+        "proofSeconds": "7.8",
+        "freshEth": "0"
+      }
+    },
+    "B": {
+      "deposit": "0x0e72051ff538e86515d6f24e637637ca6f87138889fd1be6b78f8ee845dfe3ff",
+      "label": "9193357880780107557582417096108661003413142366448517781011342966699801850932",
+      "status": "deposit above the per-deposit cap",
+      "privateWithdrawal": "not in the approved set, no withdrawal proof possible",
+      "ragequit": {
+        "tx": "0x4cda22e3d0fd6940e355019ba3f6e24bac2eacbf7a753c94998519da0c4d29da",
+        "returned": "1001000000"
+      }
+    },
+    "C": {
+      "deposit": "0x98fe16410ae1084999f9e3d1cf6a4a868b3cbd44971771e0ffa7874b8aa9386f",
+      "label": "276941861943359153153416081773096097548479878421204543059169369728588981065",
+      "status": "depositor on the Nuluvium denylist",
+      "privateWithdrawal": "not in the approved set, no withdrawal proof possible",
+      "ragequit": {
+        "tx": "0xf6baf042b44574f41efcde1640f0be4f5fbab4179e352210137a176d6d9af8f2",
+        "returned": "10000000"
+      }
+    }
+  },
+  "screening": {
+    "cid": "bafkreigtrmgqjsdxtlf6fzivnhhlwwtd3faqmtfqv6cp5xsclpdd7zc7vm",
+    "root": "4232041539486382186366857012766131764994454512123019961601836888301615477183",
+    "tx": "0x3bcfeb79f82eda8890cae88c8188a6f37721694e423818a9039535266ebf1a0c",
+    "set": "https://asp.nuluvium.com/sets/bafkreigtrmgqjsdxtlf6fzivnhhlwwtd3faqmtfqv6cp5xsclpdd7zc7vm"
+  }
+}

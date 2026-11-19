@@ -1,0 +1,8 @@
+{
+  // Build for the npm package: compiles the MCP server and the SDK it imports (../sdk/src) to plain
+  // JavaScript in dist/. Node does not run TypeScript from node_modules, so the package ships JS.
+  // rootDir is the repo root, so dist/mcp/src/server.js keeps reaching ../../sdk/src/*.js.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "rootDir": "..", "outDir": "dist", "sourceMap": false },
+  "include": ["src"]
+}

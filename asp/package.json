@@ -1,0 +1,17 @@
+{
+  "name": "nuluvium-asp",
+  "private": true,
+  "type": "module",
+  "description": "Approved-set provider (ASP) for the Nuluvium USDG pool: screens deposits and posts the approved root",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "dev": "npx -y wrangler@4 dev --test-scheduled",
+    "deploy": "npx -y wrangler@4 deploy"
+  },
+  "dependencies": {
+    "@zk-kit/lean-imt": "2.2.4",
+    "poseidon-lite": "0.3.0",
+    "viem": "2.22.14"
+  }
+}

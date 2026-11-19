@@ -1,0 +1,9 @@
+{
+  "mockFactory": "0xeb6DC6A5Fb583118648dFD5a075Bf0EbA45786D8",
+  "mockStock": "0xf2a0289ec25994dC7d22461Afd1dF3B818A0E088",
+  "mockSwapRouter": "0x807035ba230A5713c2B98c07DB030030CE0A2b2a",
+  "mockUsdgPerStock": 180000000,
+  "owner": "0xbdED052e3Ebf14c6631497F867CB15fDb455170b",
+  "poolFee": 500,
+  "router": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155"
+}

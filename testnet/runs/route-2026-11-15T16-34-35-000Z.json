@@ -1,0 +1,129 @@
+{
+  "startedAt": "2026-11-15T16:34:35.000Z",
+  "deposit": {
+    "tx": "0x8b20e6e3ffbd1114d1ed9cb541ba13475b10229972b5396b55843a3d02e118a3",
+    "index": "5",
+    "amount": "50000000"
+  },
+  "plan": [
+    {
+      "number": 0,
+      "amount": "10990000",
+      "at": "16:35:15"
+    },
+    {
+      "number": 1,
+      "amount": "9640000",
+      "at": "16:36:53"
+    },
+    {
+      "number": 2,
+      "amount": "11770000",
+      "at": "16:38:17"
+    },
+    {
+      "number": 3,
+      "amount": "8860000",
+      "at": "16:40:56"
+    },
+    {
+      "number": 4,
+      "amount": "8740000",
+      "at": "16:43:27"
+    }
+  ],
+  "results": [
+    {
+      "amount": "10990000",
+      "tx": "0xb318741a9b560b9f6d6d7e937aacde85f716de668140e32e2c6cb5d3f84b4caf",
+      "fresh": "0x07751C531F27830cE5BAdA54B57436B83845c2c9",
+      "fee": "100000",
+      "proofSeconds": 6.419,
+      "gasUsed": "635547",
+      "number": 0,
+      "attempts": 1,
+      "sentAt": "16:35:25"
+    },
+    {
+      "amount": "9640000",
+      "tx": "0x32aa4de8f7a23925e1fca037e948321285ee8e09b40a5338017833ace77d97b3",
+      "fresh": "0x9f5c91CF6e385D9166E62Dd701bc8e87361418fa",
+      "fee": "100000",
+      "proofSeconds": 2.206,
+      "gasUsed": "635559",
+      "number": 1,
+      "attempts": 1,
+      "sentAt": "16:36:59"
+    },
+    {
+      "amount": "11770000",
+      "tx": "0x8f946b67a7fd8ce6fe95631bf7a40aae82804810ef7a681e793aaa12a288f2e7",
+      "fresh": "0xCd75c096C9d83B84AbDE1603c3Be481094944839",
+      "fee": "100000",
+      "proofSeconds": 2.551,
+      "gasUsed": "651524",
+      "number": 2,
+      "attempts": 1,
+      "sentAt": "16:38:23"
+    },
+    {
+      "amount": "8860000",
+      "tx": "0x116af7d16e17dcda4104dd17bf036d2fcbc5612adbaccd73db52d32de1fdd0d6",
+      "fresh": "0xD8560653806b488e34190CDAb44bF81AaE65f8b2",
+      "fee": "100000",
+      "proofSeconds": 2.121,
+      "gasUsed": "635547",
+      "number": 3,
+      "attempts": 1,
+      "sentAt": "16:41:02"
+    },
+    {
+      "amount": "8740000",
+      "tx": "0x0e63684e4848550c60c65659f4ae5afede57647d5d8e7feedec9bace967ebfc3",
+      "fresh": "0x6351ecA6F564b56Ee51DEebc66EA33360AAF53Cf",
+      "fee": "100000",
+      "proofSeconds": 2.404,
+      "gasUsed": "651524",
+      "number": 4,
+      "attempts": 1,
+      "sentAt": "16:43:34"
+    }
+  ],
+  "checks": [
+    {
+      "fresh": "0x07751C531F27830cE5BAdA54B57436B83845c2c9",
+      "stock": "60500000000000000",
+      "usdg": "0",
+      "eth": "0",
+      "ok": true
+    },
+    {
+      "fresh": "0x9f5c91CF6e385D9166E62Dd701bc8e87361418fa",
+      "stock": "53000000000000000",
+      "usdg": "0",
+      "eth": "0",
+      "ok": true
+    },
+    {
+      "fresh": "0xCd75c096C9d83B84AbDE1603c3Be481094944839",
+      "stock": "64833333333333333",
+      "usdg": "0",
+      "eth": "0",
+      "ok": true
+    },
+    {
+      "fresh": "0xD8560653806b488e34190CDAb44bF81AaE65f8b2",
+      "stock": "48666666666666666",
+      "usdg": "0",
+      "eth": "0",
+      "ok": true
+    },
+    {
+      "fresh": "0x6351ecA6F564b56Ee51DEebc66EA33360AAF53Cf",
+      "stock": "48000000000000000",
+      "usdg": "0",
+      "eth": "0",
+      "ok": true
+    }
+  ]
+}

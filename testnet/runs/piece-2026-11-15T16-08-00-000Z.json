@@ -1,0 +1,18 @@
+{
+  "note": "Recorded by hand: the script's balance check read a lagging RPC node right after the receipt and reported 0; values below were checked directly at the chain afterwards (cast). Script fixed to read at the receipt block.",
+  "relayer": "https://relayer.nuluvium.com",
+  "deposit": "0x57feaa468479765a5565e634ebe415cfb555cb5b1bcbf513675ee0bb4e9b1646",
+  "screening": { "cid": "bafkreiem4hlstozw7b6pc6juvrd7s3ch7j4s2kvraqd376myu3iyq6j53q", "tx": "0x43bebce3bc3023e775b6f8a3cacebf0fbeb224021a6339beafb9297c4fb96667" },
+  "piece": {
+    "tx": "0x65a1ae192f8371235cef3ef95c81339948707f3b483b3522be82fdea0c19db8d",
+    "sender": "0x7a7A1f77C957B7C926AA9baF6cE8fA334270c72F",
+    "gasUsed": "717538",
+    "fee": "100000",
+    "proofSeconds": "5.9",
+    "fresh": "0x691B21ddB4dA9D418b0f8eB8922B12802901EDcb",
+    "stockReceived": "66111111111111111",
+    "freshUsdg": "0",
+    "freshEth": "0",
+    "remainingShielded": "8000000"
+  }
+}

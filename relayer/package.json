@@ -1,0 +1,14 @@
+{
+  "name": "nuluvium-relayer",
+  "private": true,
+  "type": "module",
+  "description": "Nuluvium relayer: sends one piece (private withdrawal + buy) per request and pays the gas",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "deploy": "npx -y wrangler@4 deploy"
+  },
+  "dependencies": {
+    "viem": "2.22.14"
+  }
+}

@@ -1,0 +1,88 @@
+# Every push and pull request: lint, then each package's typecheck and tests, the contract tests
+# (fork tests are skipped: they need a Robinhood Chain RPC) and the web production build.
+# The same steps run locally with `npm run check -- --build` after installing each package.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run lint
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: npm ci
+        working-directory: contracts
+      - run: forge test
+        working-directory: contracts
+
+  packages:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [sdk, mcp, relayer, asp, stats]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: install the SDK too (the MCP server imports its source)
+        if: matrix.package == 'mcp'
+        run: npm ci
+        working-directory: sdk
+      - run: npm ci
+        working-directory: ${{ matrix.package }}
+      - name: typecheck
+        if: matrix.package == 'sdk' || matrix.package == 'mcp'
+        run: npm run typecheck
+        working-directory: ${{ matrix.package }}
+      - run: npm test
+        working-directory: ${{ matrix.package }}
+      - name: npm package contents
+        if: matrix.package == 'mcp'
+        run: npm pack --dry-run
+        working-directory: mcp
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # the circuit files the app serves come from the Privacy Pools submodule
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web

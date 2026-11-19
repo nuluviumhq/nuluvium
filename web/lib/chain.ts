@@ -1,0 +1,142 @@
+// Chain access for the browser. The SDK (with the Privacy Pools library and snarkjs) is loaded only
+// when needed, so the first page load stays small. Every read goes through our /api/rpc proxy.
+
+import type { NetworkConfig, UserKeys } from "@nuluvium/sdk";
+
+export const sdk = () => import("@nuluvium/sdk");
+
+/** Testnet config with reads through /api/rpc (Alchemy behind it: 10,000 blocks per log query). */
+export async function browserConfig(): Promise<NetworkConfig> {
+  const { ROBINHOOD_TESTNET } = await sdk();
+  return { ...ROBINHOOD_TESTNET, rpcUrl: `${window.location.origin}/api/rpc`, logChunk: 10_000n };
+}
+
+export type Approval = "approved" | "waiting" | "rejected";
+
+export interface ShieldedNote {
+  depositIndex: bigint;
+  value: bigint;
+  withdrawals: number;
+  /** Wallet that made the deposit: only it can take the deposit back (ragequit). */
+  depositor: `0x${string}`;
+  /** ASP decision on the deposit: only approved notes can be spent privately. */
+  approval: Approval;
+  reason?: string;
+}
+
+export interface ShieldedBalance {
+  total: bigint;
+  /** Spendable now: approved notes only. */
+  approved: bigint;
+  notes: ShieldedNote[];
+}
+
+/**
+ * The user's shielded balance, rebuilt from the chain with their keys (nothing secret is sent
+ * anywhere), with the approved-set decision for each note.
+ */
+export async function readShieldedBalance(keys: UserKeys): Promise<ShieldedBalance> {
+  const { fetchApprovedSet, publicClientFor, recoverNotes } = await sdk();
+  const config = await browserConfig();
+  const client = publicClientFor(config);
+  const [{ spendable }, set] = await Promise.all([recoverNotes(client, config, keys), fetchApprovedSet(client, config).catch(() => null)]);
+  const notes: ShieldedNote[] = spendable.map((note) => {
+    const rejected = set?.rejected.find((entry) => entry.label === note.label.toString());
+    const approval: Approval = set?.labels.includes(note.label) ? "approved" : rejected ? "rejected" : "waiting";
+    return { depositIndex: note.depositIndex, value: note.value, withdrawals: note.withdrawals, depositor: note.depositor, approval, reason: rejected?.reason };
+  });
+  return {
+    total: notes.reduce((sum, note) => sum + note.value, 0n),
+    approved: notes.filter((note) => note.approval === "approved").reduce((sum, note) => sum + note.value, 0n),
+    notes,
+  };
+}
+
+/** "12.5" or "12.50" → tUSDG units; null when not a positive amount with at most 6 decimals. */
+export function parseUsdg(text: string): bigint | null {
+  const match = text.trim().match(/^(\d+)(?:\.(\d{1,6}))?$/);
+  if (!match) return null;
+  const units = BigInt(match[1]!) * 1_000_000n + BigInt((match[2] ?? "").padEnd(6, "0") || "0");
+  return units > 0n ? units : null;
+}
+
+/** USDG units (6 decimals) as "1,234.50". */
+export function formatUsdg(units: bigint): string {
+  const whole = units / 1_000_000n;
+  const cents = (units % 1_000_000n) / 10_000n;
+  return `${whole.toLocaleString("en-US")}.${cents.toString().padStart(2, "0")}`;
+}
+
+/** tUSDG and ETH in the person's wallet (public), for the deposit form. */
+export async function readWalletFunds(address: `0x${string}`): Promise<{ usdg: bigint; eth: bigint }> {
+  const { publicClientFor } = await sdk();
+  const config = await browserConfig();
+  const client = publicClientFor(config);
+  const [usdg, eth] = await Promise.all([
+    client.readContract({
+      address: config.usdg,
+      abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ type: "uint256" }] }],
+      functionName: "balanceOf",
+      args: [address],
+    }),
+    client.getBalance({ address }),
+  ]);
+  return { usdg, eth };
+}
+
+export interface PublicPiece {
+  token: `0x${string}`;
+  usdgIn: bigint;
+  tokenOut: bigint;
+  fee: bigint;
+  owner: `0x${string}`;
+  tx: `0x${string}`;
+  block: bigint;
+}
+
+/** The latest Router swaps, as anyone sees them on chain (fresh addresses, not linked). */
+export async function readRecentPieces(limit = 4): Promise<PublicPiece[]> {
+  const { publicClientFor } = await sdk();
+  const config = await browserConfig();
+  const client = publicClientFor(config);
+  const event = {
+    type: "event",
+    name: "Swapped",
+    inputs: [
+      { name: "owner", type: "address", indexed: true },
+      { name: "nonce", type: "uint256", indexed: true },
+      { name: "tokenIn", type: "address", indexed: false },
+      { name: "tokenOut", type: "address", indexed: false },
+      { name: "amountIn", type: "uint256", indexed: false },
+      { name: "amountOut", type: "uint256", indexed: false },
+      { name: "fee", type: "uint256", indexed: false },
+      { name: "feeRecipient", type: "address", indexed: false },
+    ],
+  } as const;
+  const found: PublicPiece[] = [];
+  let to = await client.getBlockNumber();
+  // Walk back in proxy-sized chunks until enough swaps are found (at most 10 chunks).
+  for (let chunk = 0; chunk < 10 && found.length < limit; chunk++) {
+    const from = to - config.logChunk + 1n;
+    const logs = await client.getLogs({ address: config.router, event, fromBlock: from, toBlock: to });
+    for (const log of logs.reverse()) {
+      found.push({
+        token: log.args.tokenOut!,
+        usdgIn: log.args.amountIn!,
+        tokenOut: log.args.amountOut!,
+        fee: log.args.fee!,
+        owner: log.args.owner!,
+        tx: log.transactionHash,
+        block: log.blockNumber,
+      });
+    }
+    to = from - 1n;
+  }
+  return found.slice(0, limit);
+}
+
+/** Relayer fee per piece right now, in tUSDG units. */
+export async function readPieceFee(): Promise<bigint> {
+  const { getQuote } = await sdk();
+  return (await getQuote(await browserConfig())).fee;
+}

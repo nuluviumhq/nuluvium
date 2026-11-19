@@ -1,0 +1,28 @@
+// Nuluvium web app, Robinhood Chain TESTNET. Secret (not in this file): PRIVATE_RPC_URL.
+// Deploy only after asking (session 1.8d): npm run deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "darkpool-web-testnet",
+  "main": "custom-worker.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    // Video goes through the Worker so Safari gets byte ranges (lib/ranges.ts).
+    "run_worker_first": ["/assets/*.mp4"]
+  },
+  // 600 calls a minute per visitor on /api/rpc (a balance read needs about 40 to 60).
+  "ratelimits": [{ "name": "RPC_LIMITER", "namespace_id": "1101", "simple": { "limit": 600, "period": 60 } }],
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "darkpool-web-testnet" }],
+  // nuluvium.com (Cloudflare Registrar, same account). Cloudflare creates the DNS records and the
+  // certificates for custom domains. The site is served on this domain only.
+  "routes": [
+    { "pattern": "nuluvium.com", "custom_domain": true },
+    { "pattern": "www.nuluvium.com", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  // Off on purpose: no request data is kept (privacy model).
+  "observability": { "enabled": false }
+}

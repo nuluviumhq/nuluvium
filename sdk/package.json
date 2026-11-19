@@ -1,0 +1,36 @@
+{
+  "name": "@nuluvium/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nuluvium client SDK: notes, fresh keys, piece planner and sender for private routing on Robinhood Chain",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config.ts",
+    "./node": "./src/node.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@0xbow/privacy-pools-core-sdk": "1.5.0",
+    "@scure/bip39": "1.5.4",
+    "poseidon-lite": "0.3.0",
+    "viem": "2.57.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@0xbow/privacy-pools-core-sdk": {
+      "viem": "2.57.8"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "nuluvium",
+  "private": true,
+  "description": "Nuluvium monorepo: checks that run across every package",
+  "license": "Apache-2.0",
+  "scripts": {
+    "lint": "biome lint .",
+    "check": "node tools/check-all.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8"
+  }
+}

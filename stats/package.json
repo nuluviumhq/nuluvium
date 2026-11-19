@@ -1,0 +1,15 @@
+{
+  "name": "nuluvium-stats",
+  "private": true,
+  "type": "module",
+  "description": "Public stats for Nuluvium: totals over the pool and Router events, the ASP set and the relayer",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "dev": "npx -y wrangler@4 dev --test-scheduled",
+    "deploy": "npx -y wrangler@4 deploy"
+  },
+  "dependencies": {
+    "viem": "2.57.8"
+  }
+}

@@ -1,0 +1,29 @@
+// Nuluvium relayer, Robinhood Chain TESTNET. Secrets (not in this file): RELAYER_KEY, PRIVATE_RPC_URL.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "darkpool-relayer-testnet",
+  "main": "src/worker.js",
+  // Served at relayer.nuluvium.com only (custom domain; Cloudflare makes the DNS record and certificate).
+  "routes": [{ "pattern": "relayer.nuluvium.com", "custom_domain": true }],
+  "workers_dev": false,
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Off on purpose: the relayer must not keep request data (privacy model, docs/sdk.md).
+  "observability": { "enabled": false },
+  "durable_objects": {
+    "bindings": [{ "name": "RELAY_QUEUE", "class_name": "RelayQueue" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RelayQueue"] }],
+  "vars": {
+    "CHAIN_ID": "46630",
+    "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
+    "ROUTER": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
+    // Fee quote inputs. ETH price is fixed on testnet; mainnet reads it from Uniswap (later).
+    "GAS_PER_PIECE": "900000",
+    "ETH_USD_CENTS": "300000",
+    "FEE_MARGIN_PERCENT": "120",
+    "MINIMUM_FEE": "100000",
+    // Refuse to send below 0.0005 ETH, so the float is topped up before it runs dry.
+    "MINIMUM_BALANCE_WEI": "500000000000000"
+  }
+}

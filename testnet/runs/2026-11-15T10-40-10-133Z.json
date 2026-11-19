@@ -1,0 +1,36 @@
+{
+  "startedAt": "2026-11-15T10:40:10.133Z",
+  "chainId": 46630,
+  "deployment": {
+    "chainId": 46630,
+    "deployer": "0xbdED052e3Ebf14c6631497F867CB15fDb455170b",
+    "entrypoint": "0x1C7Bd821a61A90BA06e21aac4e03640E3D065536",
+    "entrypointImplementation": "0x362B7Fc530B1cF427778E79Bb670D99578401aa3",
+    "pool": "0x2B38bF53acc21a51603E68f5BC3bC8943B01fD4a",
+    "ragequitVerifier": "0x1df3124F265B398Cd84630eA70eBb65d30Cc1c3a",
+    "scope": "20883339666151915200592145183006062909365231028523521475069391119255857699183",
+    "usdg": "0xd26d58F86cf82c702b558D6E7F159939E97F0Bfa",
+    "withdrawalVerifier": "0x452ec534a1C765450f1E805fE1B8854Ca5aad8E8",
+    "deploymentBlock": "153603397"
+  },
+  "steps": {
+    "deposit": {
+      "tx": "0x869aa2ed65681dee277bf779a5035fd173f8d1721e11619853688d7268b36bf0",
+      "depositIndex": "0",
+      "value": "25000000"
+    },
+    "updateRoot": {
+      "tx": "0x77e97d9ceff97b7757a42246f6cd6255b61a03f74ec88b6eced319c775b8485d",
+      "approvedLabels": 1
+    },
+    "withdraw": {
+      "tx": "0x39c457d9510630a0f120c78314f443dac189010127fef443c087dc7794d945f4",
+      "freshAddress": "0xF528EDEb717124CEf539B4f42D2557A957F6d812",
+      "received": "9950000",
+      "relayFeeBps": "50",
+      "proofSeconds": "10.3",
+      "remainingInPool": "15000000",
+      "freshAddressEth": "0"
+    }
+  }
+}

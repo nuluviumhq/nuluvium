@@ -1,0 +1,12 @@
+{
+  "name": "nuluvium-testnet",
+  "private": true,
+  "type": "module",
+  "description": "Session 1.2 scripts: deposit into the Privacy Pools USDG pool on Robinhood Chain testnet, post the approved root, withdraw privately to a fresh address",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@0xbow/privacy-pools-core-sdk": "1.5.0",
+    "viem": "2.22.14"
+  }
+}

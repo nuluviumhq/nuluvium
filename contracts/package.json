@@ -1,0 +1,17 @@
+{
+  "name": "nuluvium-contracts",
+  "private": true,
+  "description": "Nuluvium contracts: Privacy Pools v1 (unchanged, pinned submodule) plus our own contracts",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.1.0",
+    "@openzeppelin/contracts-upgradeable": "5.0.2",
+    "@openzeppelin/foundry-upgrades": "0.3.6",
+    "zk-kit-lean-imt-sol": "npm:@zk-kit/lean-imt.sol@2.0.0",
+    "poseidon-solidity": "0.0.5"
+  }
+}

@@ -1,0 +1,35 @@
+// Nuluvium ASP Worker, Robinhood Chain TESTNET. Secret (not in this file): POSTMAN_KEY.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "darkpool-asp-testnet",
+  "main": "src/worker.js",
+  // Served at asp.nuluvium.com only (custom domain; Cloudflare makes the DNS record and certificate).
+  "routes": [{ "pattern": "asp.nuluvium.com", "custom_domain": true }],
+  "workers_dev": false,
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Every minute on testnet; a root is only posted when the approved set changes.
+  "triggers": { "crons": ["* * * * *"] },
+  "observability": { "enabled": true },
+  "kv_namespaces": [
+    // Published set documents (set:<cid>), the latest posted root, and the cached OFAC list.
+    { "binding": "ASP_SETS", "id": "43f177da5e754145b2d739e87d158aa8" }
+  ],
+  "vars": {
+    "CHAIN_ID": "46630",
+    "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
+    "ENTRYPOINT": "0x1C7Bd821a61A90BA06e21aac4e03640E3D065536",
+    "POOL": "0x2B38bF53acc21a51603E68f5BC3bC8943B01fD4a",
+    // L2 block of the deploy (from contracts/broadcast receipts).
+    "DEPLOY_BLOCK": "153603397",
+    // Stock token issuer registry on testnet (TSLA's ACCESS_CONTROLLED_REGISTRY()).
+    "ISSUER_REGISTRY": "0x1dF3cA0fD30ED5eeb09eB01938f4E9c5196E6Ca5",
+    // OFAC SDN digital currency addresses, generated daily from Treasury data (MIT).
+    "OFAC_LIST_URL": "https://raw.githubusercontent.com/0xB10C/ofac-sanctioned-digital-currency-addresses/lists/sanctioned_addresses_ETH.txt",
+    // Beta caps in USDG units (6 decimals): $1,000 per deposit, $25,000 in total.
+    "PER_DEPOSIT_CAP": "1000000000",
+    "TOTAL_CAP": "25000000000",
+    // Our own denylist. Testnet: one demo depositor, listed on purpose to show a rejected deposit.
+    "DENYLIST": "0xA784757251fD24dF5ce44FF783Da3a661f1395D3"
+  }
+}

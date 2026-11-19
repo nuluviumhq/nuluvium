@@ -1,0 +1,67 @@
+# Nuluvium contracts.
+# Privacy Pools v1 lives unchanged in lib/privacy-pools-core (git submodule pinned to tag v1.3.0).
+# Its Solidity dependencies are installed with npm at the exact versions upstream pins (package.json).
+
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib", "node_modules"]
+test = "test"
+script = "script"
+solc = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 10_000 # same as upstream Privacy Pools
+bytecode_hash = "none"
+cbor_metadata = false
+auto_detect_remappings = false # use only the list below (upstream remappings.txt assumes its monorepo layout)
+fs_permissions = [{ access = "read-write", path = "./deployments/" }]
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  # Upstream Privacy Pools import names
+  "contracts/=lib/privacy-pools-core/packages/contracts/src/contracts/",
+  "interfaces/=lib/privacy-pools-core/packages/contracts/src/interfaces/",
+  "@oz/=node_modules/@openzeppelin/contracts/",
+  "@oz-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
+  "@upgrades/=node_modules/@openzeppelin/foundry-upgrades/src/",
+  "@openzeppelin/=node_modules/@openzeppelin/",
+  # npm alias: a folder name ending in ".sol" is read as a file by the remapper
+  "lean-imt/=node_modules/zk-kit-lean-imt-sol/",
+  "poseidon-solidity/=node_modules/poseidon-solidity/",
+  "solidity-stringutils/=node_modules/@openzeppelin/foundry-upgrades/lib/solidity-stringutils/",
+  "poseidon/=node_modules/poseidon-solidity/",
+]
+
+[profile.default.fuzz]
+runs = 500
+
+# Runs upstream's own unit tests against our dependency install:
+#   FOUNDRY_PROFILE=upstream forge test --match-path "lib/privacy-pools-core/packages/contracts/test/unit/**"
+[profile.upstream]
+src = "lib/privacy-pools-core/packages/contracts/src"
+test = "lib/privacy-pools-core/packages/contracts/test"
+script = "lib/privacy-pools-core/packages/contracts/script"
+out = "cache/upstream-out"
+cache_path = "cache/upstream-cache"
+libs = ["node_modules"] # forge skips tests inside lib folders
+remappings = [
+  "test/=lib/privacy-pools-core/packages/contracts/test/",
+  "script/=lib/privacy-pools-core/packages/contracts/script/",
+  "forge-std/=lib/forge-std/src/",
+  # Upstream Privacy Pools import names
+  "contracts/=lib/privacy-pools-core/packages/contracts/src/contracts/",
+  "interfaces/=lib/privacy-pools-core/packages/contracts/src/interfaces/",
+  "@oz/=node_modules/@openzeppelin/contracts/",
+  "@oz-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
+  "@upgrades/=node_modules/@openzeppelin/foundry-upgrades/src/",
+  "@openzeppelin/=node_modules/@openzeppelin/",
+  # npm alias: a folder name ending in ".sol" is read as a file by the remapper
+  "lean-imt/=node_modules/zk-kit-lean-imt-sol/",
+  "poseidon-solidity/=node_modules/poseidon-solidity/",
+  "solidity-stringutils/=node_modules/@openzeppelin/foundry-upgrades/lib/solidity-stringutils/",
+  "poseidon/=node_modules/poseidon-solidity/",
+]
+
+[rpc_endpoints]
+robinhood_mainnet = "https://rpc.mainnet.chain.robinhood.com"
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"

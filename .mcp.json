@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "nuluvium": {
+      "command": "node",
+      "args": [
+        "mcp/src/server.ts"
+      ],
+      "env": {
+        "NULUVIUM_MNEMONIC": "${NULUVIUM_MNEMONIC}",
+        "NULUVIUM_NETWORK": "robinhood-testnet",
+        "NULUVIUM_RPC_URL": "${NULUVIUM_RPC_URL:-}"
+      }
+    }
+  }
+}
