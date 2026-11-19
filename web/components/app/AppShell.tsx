@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { formatUsdg } from "@/lib/chain";
 import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { useSession } from "./session";
 
@@ -19,24 +20,28 @@ const PAGES = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const current = PAGES.find((page) => page.href === pathname) ?? PAGES[0];
-  const { session, openLogin, logout } = useSession();
+  const { session, openLogin, logout, balance } = useSession();
+  // Top bar: the balance you can spend now, on every page (was a sample market clock).
+  const ready = balance.value?.approved;
+  const topLine = !session ? "" : ready === undefined ? "Shielded balance · reading…" : `Shielded balance · ${formatUsdg(ready)} tUSDG ready`;
 
   return (
     <>
       <div className="mobile-bar">
         <Link className="wordmark" href="/">Nuluvium</Link>
-        {/* Inline layout: globals.css mirrors the prototype and is not restyled. */}
-        <span className="account-mini" style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-          {session ? (
-            <>
-              <span className="mono soft">{session.wallet}</span>
-              {/* The sidebar (with its Log out) is hidden on phones, so the bar carries one too. */}
+        {session ? (
+          // Phones: the address opens a small menu, so Log out is not one stray tap away.
+          <details className="account-menu">
+            <summary className="mono">{session.wallet}</summary>
+            <div className="menu-panel">
+              <span className="mono soft">{session.kind === "email" ? "Email login · unlocked" : "Wallet · unlocked"}</span>
+              <RecoveryPhraseButton />
               <button className="text-link mono" type="button" onClick={logout}>Log out</button>
-            </>
-          ) : (
-            <button className="button" type="button" onClick={() => openLogin()}>Log in</button>
-          )}
-        </span>
+            </div>
+          </details>
+        ) : (
+          <button className="button" type="button" onClick={() => openLogin()}>Log in</button>
+        )}
       </div>
       <div className="app">
         <aside className="sidebar">
@@ -67,7 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
         <main className="app-main" data-page={current.id}>
           <div className="app-top">
-            <span className="mono soft">US market open · sample</span>
+            <span className="mono soft">{topLine}</span>
             <span className="sample">Testnet · test tokens only</span>
           </div>
           {children}

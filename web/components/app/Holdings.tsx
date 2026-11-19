@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { formatUsdg, readPieceFee } from "@/lib/chain";
 import { freshPrivateKey, readHoldings, saleValue, sellHolding, type Holding } from "@/lib/exits";
 import { TOKENS, type TradableToken } from "@/lib/tokens";
-import { explorerAddress, explorerTx, shortAddress } from "@/lib/wallet";
+import { explorerAddress, shortAddress } from "@/lib/wallet";
 import { Dialog } from "./Dialog";
 import { friendlyError, useSession } from "./session";
 
@@ -47,7 +47,7 @@ export function Holdings() {
     toast("Selling… the relayer sends it, no wallet prompt.");
     try {
       const { tx } = await sellHolding(session.keys, holding, token);
-      toast(`Sold. The tUSDG is on ${shortAddress(holding.address)}. ${explorerTx(tx)}`);
+      toast(`Sold. The tUSDG is on ${shortAddress(holding.address)}.`, tx);
       refresh();
     } catch (error) {
       toast(friendlyError(error));

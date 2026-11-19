@@ -104,18 +104,40 @@ export async function ensureTestnet(): Promise<void> {
   }
 }
 
-/** viem wallet client on the injected wallet, for transactions the person signs. */
-export async function walletClient(address: `0x${string}`): Promise<WalletClient> {
+/** What the person's wallet is asking them to do right now, for step-by-step progress text. */
+export type WalletStep = "approve" | "send" | "confirming";
+
+// ERC-20 approve(address,uint256): tells an allowance prompt apart from the deposit itself.
+const APPROVE_SELECTOR = "0x095ea7b3";
+
+/**
+ * viem wallet client on the injected wallet, for transactions the person signs. With onStep, each
+ * transaction prompt is reported before it opens, and "confirming" once the wallet has sent it.
+ */
+export async function walletClient(address: `0x${string}`, onStep?: (step: WalletStep) => void): Promise<WalletClient> {
   const { chainFor } = await sdk();
-  return createWalletClient({ account: address, chain: chainFor(await browserConfig()), transport: custom(provider()) });
+  const injected = provider();
+  const transport = onStep
+    ? custom({
+        request: async (args: { method: string; params?: unknown }) => {
+          if (args.method !== "eth_sendTransaction") return injected.request(args as never);
+          const [tx] = (args.params ?? []) as [{ data?: string }];
+          onStep(tx?.data?.startsWith(APPROVE_SELECTOR) ? "approve" : "send");
+          const hash = await injected.request(args as never);
+          onStep("confirming");
+          return hash;
+        },
+      })
+    : custom(injected);
+  return createWalletClient({ account: address, chain: chainFor(await browserConfig()), transport });
 }
 
 /** Deposits tUSDG from the wallet into the shielded pool under the person's next note. */
-export async function depositToPool(address: `0x${string}`, keys: UserKeys, amount: bigint): Promise<`0x${string}`> {
+export async function depositToPool(address: `0x${string}`, keys: UserKeys, amount: bigint, onStep?: (step: WalletStep) => void): Promise<`0x${string}`> {
   await ensureTestnet();
   const { depositUsdg, publicClientFor } = await sdk();
   const config = await browserConfig();
-  const { tx } = await depositUsdg(publicClientFor(config), await walletClient(address), config, keys, amount);
+  const { tx } = await depositUsdg(publicClientFor(config), await walletClient(address, onStep), config, keys, amount);
   return tx;
 }
 

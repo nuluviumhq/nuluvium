@@ -45,10 +45,18 @@ export function Trade() {
   const receive = fees !== null && amount > fees ? expectedOut(token, amount - fees) : 0n;
   const mine = orders.slice(0, 5);
   const approved = balance.value?.approved;
+  const waitingDeposit = balance.value?.notes.some((note) => note.approval === "waiting") ?? false;
+  // Why the order cannot go out yet, shown under the button (null: it can).
+  const blocker = !loggedIn || approved === undefined || amount <= 0n || amount <= approved
+    ? null
+    : waitingDeposit
+      ? "waiting"
+      : "short";
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (amount <= 0n) return toast("Enter an amount above zero.");
+    if (blocker) return;
     // Logged out: the login modal opens first, then the order is placed.
     requireLogin(async () => {
       setSending(true);
@@ -92,13 +100,19 @@ export function Trade() {
         </section>
 
         <form className="ledger" aria-label="Order ticket" onSubmit={submit}>
-          <p className="ledger-intro">One decision per line.</p>
+          <p className="ledger-intro">Your order</p>
           <div className="form-rows">
+            {loggedIn ? (
+              <div>
+                <span className="name"><span className="n"></span>Ready to spend</span>
+                <span className="value">{approved === undefined ? "…" : formatUsdg(approved)} <small>tUSDG</small></span>
+              </div>
+            ) : null}
             <div>
               <span className="name"><span className="n">01</span>Side</span>
               <span className="pick" role="group" aria-label="Side">
                 <button type="button" aria-pressed="true">Buy</button>
-                <button type="button" aria-pressed="false" disabled title="Selling comes later">Sell</button>
+                <button type="button" aria-pressed="false" disabled title="Selling from the app comes later">Sell · soon</button>
               </span>
             </div>
             <label>
@@ -137,7 +151,12 @@ export function Trade() {
               <span className="value">{fees === null ? "…" : formatUsdg(fees)} <small>tUSDG</small></span>
             </div>
           </div>
-          <button className="button full" type="submit" disabled={sending}>{sending ? "Planning…" : loggedIn ? "Route order" : "Log in to route"}</button>
+          <button className="button full" type="submit" disabled={sending || Boolean(blocker)}>{sending ? "Planning…" : loggedIn ? "Route order" : "Log in to route"}</button>
+          {blocker === "waiting" ? (
+            <p className="reason" aria-live="polite">Your deposit is waiting for the clean-funds check, usually under a minute. The button unlocks by itself.</p>
+          ) : blocker === "short" ? (
+            <p className="reason" aria-live="polite">That is more than you have ready to spend. <Link className="text-link" href="/app">Deposit on Overview</Link> or lower the amount.</p>
+          ) : null}
           <p className="fine">Paid from your shielded balance. Each piece swaps from its own fresh address; keep this tab open until the last piece. Testnet: MSTK is a mock stock at a fixed price of 180 tUSDG.</p>
         </form>
       </div>

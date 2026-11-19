@@ -17,7 +17,7 @@ import { usePrivyState, type BridgeWallet } from "@/lib/privyState";
 import { OrderEngine } from "@/lib/engine";
 import { isOpen, type Order } from "@/lib/orders";
 import { TOKENS } from "@/lib/tokens";
-import { WalletError, depositToPool, setActiveProvider, shortAddress, unlockWithWallet, type Eip1193Provider } from "@/lib/wallet";
+import { WalletError, depositToPool, explorerTx, setActiveProvider, shortAddress, unlockWithWallet, type Eip1193Provider, type WalletStep } from "@/lib/wallet";
 
 /** Beta caps enforced by the approved-set provider (asp/src/screen.js). */
 export const DEPOSIT_CAP = 1_000n * 1_000_000n;
@@ -60,14 +60,15 @@ interface SessionContext {
   requireLogin: (action: () => void) => void;
   openLogin: (next?: () => void) => void;
   logout: () => void;
-  toast: (message: string) => void;
+  /** Shows a short message; with tx, a "View on explorer" link (the message then stays longer). */
+  toast: (message: string, tx?: string) => void;
   balance: BalanceState;
   refreshBalance: () => void;
   orders: Order[];
   /** Plans and schedules an order; returns it, or throws with a message for the person. */
   placeOrder: (order: NewOrder) => Promise<Order>;
   cancelOrder: (id: string) => Promise<number>;
-  deposit: (amount: bigint) => Promise<string>;
+  deposit: (amount: bigint, onStep?: (step: WalletStep) => void) => Promise<string>;
 }
 
 const Context = createContext<SessionContext | null>(null);
@@ -95,6 +96,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [balance, setBalance] = useState<BalanceState>({ state: "idle" });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastTx, setToastTx] = useState<string | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginShown, setLoginShown] = useState(false);
   const [step, setStep] = useState<string | null>(null);
@@ -115,10 +117,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const engine = useRef<OrderEngine | null>(null);
   const balanceRun = useRef(0);
 
-  const toast = useCallback((message: string) => {
+  const toast = useCallback((message: string, tx?: string) => {
     setToastMessage(message);
+    setToastTx(tx ?? null);
     window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToastMessage(null), 4200);
+    toastTimer.current = window.setTimeout(() => setToastMessage(null), tx ? 9000 : 4200);
   }, []);
 
   const refreshBalance = useCallback(() => {
@@ -361,10 +364,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     orders,
     placeOrder,
     cancelOrder: async (id) => (engine.current ? engine.current.cancel(id) : 0),
-    deposit: async (amount) => {
+    deposit: async (amount, onStep) => {
       if (!session) throw new Error("Log in first.");
       if (amount > DEPOSIT_CAP) throw new Error("Deposits are capped at 1,000 tUSDG until the audit.");
-      const tx = await depositToPool(session.address, session.keys, amount);
+      const tx = await depositToPool(session.address, session.keys, amount, onStep);
       refreshBalance();
       return tx;
     },
@@ -443,6 +446,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       </div>
       <div className={toastMessage ? "toast show" : "toast"} role="status" aria-live="polite">
         {toastMessage}
+        {toastMessage && toastTx ? (
+          <>
+            {" "}
+            <a href={explorerTx(toastTx)} target="_blank" rel="noreferrer">View on explorer</a>
+          </>
+        ) : null}
       </div>
     </Context.Provider>
   );

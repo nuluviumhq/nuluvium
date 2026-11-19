@@ -10,14 +10,16 @@ import { requestTestFunds } from "@/lib/faucet";
 import { ragequitDeposit } from "@/lib/exits";
 import { STATUS_CLASS, STATUS_LABEL, marble } from "@/lib/format";
 import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
-import { explorerTx, shortAddress } from "@/lib/wallet";
+import { shortAddress, type WalletStep } from "@/lib/wallet";
 import { Dialog } from "./Dialog";
 import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { DEPOSIT_CAP, friendlyError, useSession } from "./session";
 
 const TILE_COUNT = 45;
-const APPROVAL_LABEL = { approved: "Approved", waiting: "Waiting for approval", rejected: "Not approved" } as const;
+const APPROVAL_LABEL = { approved: "Approved", waiting: "Checking, about a minute", rejected: "Not approved" } as const;
 const APPROVAL_CLASS = { approved: "done", waiting: "scheduled", rejected: "expired" } as const;
+// Getting started can be hidden by hand (for people whose orders live in another browser).
+const ONBOARD_HIDDEN_KEY = "nuluvium.onboard.hidden";
 
 export function Overview() {
   const { session, openLogin, orders, balance, refreshBalance, deposit, toast } = useSession();
@@ -43,11 +45,12 @@ export function Overview() {
   }, [session]);
   useEffect(readFunds, [readFunds]);
 
+  // Runs one wallet action; `working` is the line that says what is happening now.
   const run = async (label: string, action: () => Promise<string>, done: (tx: string) => string) => {
     setWorking(label);
     try {
       const tx = await action();
-      toast(done(tx));
+      toast(done(tx), tx);
       readFunds();
       refreshBalance();
       // The RPC's log index can trail the receipt by a few seconds: read once more a little later.
@@ -69,7 +72,7 @@ export function Overview() {
     void run(
       "Taking the deposit back… the proof takes a few seconds, then confirm in your wallet.",
       async () => (await ragequitDeposit(session.address, session.keys, note.depositIndex)).tx,
-      (tx) => `${formatUsdg(note.value)} tUSDG are back in your wallet. ${explorerTx(tx)}`,
+      () => `${formatUsdg(note.value)} tUSDG are back in your wallet.`,
     );
   };
 
@@ -79,8 +82,56 @@ export function Overview() {
     if (!amount) return toast("Enter an amount above zero.");
     if (amount > DEPOSIT_CAP) return toast("Deposits are capped at 1,000 tUSDG until the audit.");
     if (funds && amount > funds.usdg) return toast("Your wallet holds less tUSDG than that. Use Get test funds first.");
-    void run("Depositing… confirm in your wallet (approve, then deposit).", () => deposit(amount), (tx) => `Deposited. It can be used once approved, usually within a minute. ${explorerTx(tx)}`);
+    // The wallet asks up to twice: allow tUSDG (first deposit only), then the deposit itself.
+    let approvedFirst = false;
+    const onStep = (step: WalletStep) => {
+      if (step === "approve") approvedFirst = true;
+      setWorking(
+        step === "approve"
+          ? "Step 1 of 2: allow Nuluvium to use your tUSDG. Confirm in your wallet."
+          : step === "send"
+            ? `${approvedFirst ? "Step 2 of 2: " : ""}confirm the deposit in your wallet.`
+            : "Sent. Waiting for the network to confirm, a few seconds…",
+      );
+    };
+    void run("Preparing the deposit…", () => deposit(amount, onStep), () => "Deposited. The clean-funds check approves it, usually within a minute.");
   };
+
+  const getTestFunds = () => {
+    if (!session) return;
+    let gotEth = false;
+    void run(
+      "Sending test funds to your wallet… nothing to sign.",
+      async () => {
+        const drip = await requestTestFunds(session.address);
+        gotEth = drip.eth !== "0";
+        return drip.usdgTx;
+      },
+      () => `${gotEth ? "100 test USDG and a little test ETH for gas are" : "100 test USDG are"} in your wallet.`,
+    );
+  };
+
+  // Getting started: derived from the chain and this browser, so it ticks itself off.
+  const notes = balance.value?.notes ?? [];
+  const approvedTotal = balance.value?.approved ?? 0n;
+  const awaitingApproval = notes.some((note) => note.approval === "waiting");
+  const steps = {
+    funds: notes.length > 0 || Boolean(funds && funds.usdg > 0n && funds.eth > 0n),
+    deposit: notes.length > 0,
+    approved: approvedTotal > 0n,
+    order: orders.length > 0,
+  };
+  const current = !steps.funds ? "funds" : !steps.deposit ? "deposit" : !steps.approved ? "approved" : !steps.order ? "order" : null;
+  const [onboardHidden, setOnboardHidden] = useState(false);
+  useEffect(() => {
+    try { setOnboardHidden(window.localStorage.getItem(ONBOARD_HIDDEN_KEY) === "1"); } catch { /* storage blocked: keep showing */ }
+  }, []);
+  const hideOnboard = () => {
+    setOnboardHidden(true);
+    try { window.localStorage.setItem(ONBOARD_HIDDEN_KEY, "1"); } catch { /* storage blocked: hidden for this visit */ }
+  };
+  const showOnboard = loggedIn && !onboardHidden && current !== null && balance.state === "ready" && funds !== null;
+  const stepClass = (id: keyof typeof steps) => (steps[id] ? "done" : current === id ? "current" : undefined);
 
   return (
     <>
@@ -93,10 +144,50 @@ export function Overview() {
       <section className="prompt" hidden={loggedIn}>
         <div>
           <h2 className="title">Log in to see your balance and orders</h2>
-          <p>You will see your shielded balance, the orders being routed and every piece that went out.</p>
+          <p>Then four short steps: free test funds, a deposit, a minute for the clean-funds check, and your first private order. About three minutes.</p>
         </div>
         <button className="button" type="button" onClick={() => openLogin()}>Log in</button>
       </section>
+
+      {showOnboard ? (
+        <section className="box onboard" aria-label="Getting started">
+          <div className="box-head">
+            <h2 className="title">Getting started</h2>
+            <button className="text-link mono soft" type="button" onClick={hideOnboard}>Hide</button>
+          </div>
+          <ol>
+            <li className={stepClass("funds")}>
+              <div className="step-head"><span className="n">01</span><h3>Get test funds</h3></div>
+              <p>100 test USDG and a little test ETH for gas, free, once a day. Nothing to sign.</p>
+              {steps.funds ? <span className="state done">Done</span> : current === "funds" ? (
+                <button className="button" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
+              ) : null}
+            </li>
+            <li className={stepClass("deposit")}>
+              <div className="step-head"><span className="n">02</span><h3>Deposit</h3></div>
+              <p>Move tUSDG into your shielded balance. Your wallet asks twice the first time: allow, then deposit.</p>
+              {steps.deposit ? <span className="state done">Done</span> : current === "deposit" ? (
+                <button className="button" type="button" disabled={Boolean(working) || !amount} onClick={onDeposit}>Deposit {amountText} tUSDG</button>
+              ) : null}
+            </li>
+            <li className={stepClass("approved")}>
+              <div className="step-head"><span className="n">03</span><h3>Clean-funds check</h3></div>
+              <p>Each deposit is checked before it can be spent, usually within a minute. This page updates by itself.</p>
+              {steps.approved ? <span className="state done">Approved</span> : awaitingApproval ? (
+                <span className="state scheduled">Checking…</span>
+              ) : null}
+            </li>
+            <li className={stepClass("order")}>
+              <div className="step-head"><span className="n">04</span><h3>First private order</h3></div>
+              <p>Buy a stock token in pieces, each from its own fresh address.</p>
+              {steps.order ? <span className="state done">Done</span> : current === "order" ? (
+                <Link className="button" href="/app/trade">Route an order</Link>
+              ) : null}
+            </li>
+          </ol>
+          {working && current !== "order" ? <p className="reason" aria-live="polite">{working}</p> : null}
+        </section>
+      ) : null}
 
       <div className="overview" hidden={!loggedIn}>
         {/* One tile per piece of your orders. */}
@@ -132,44 +223,7 @@ export function Overview() {
         </section>
       </div>
 
-      <section className="clock" aria-label="Market hours">
-        <div className="clock-head">
-          <h2 className="title">Market hours</h2>
-          <p><span className="state done">US market open</span><span className="mono soft">Closes in 3 h 12 min · sample</span></p>
-        </div>
-        <div className="day" role="img" aria-label="The US market is open from 14:30 to 21:00 UTC. It is 17:48 UTC now.">
-          <span className="session" style={{ left: "60.42%", width: "27.08%" }}></span>
-          <span className="now" style={{ left: "74.17%" }}><i>17:48</i></span>
-        </div>
-        <div className="hours mono soft"><span>00</span><span>06</span><span>12</span><span>18</span><span>24 UTC</span></div>
-        <p className="fine">Pools trade around the clock, but their prices drift from the real stock while the market is closed.</p>
-      </section>
-
       <div className="pair" hidden={!loggedIn}>
-        <section className="box" aria-label="Orders routing now">
-          <div className="box-head"><h2 className="title">Orders routing now</h2><Link className="mono soft text-link" href="/app/orders">All orders</Link></div>
-          <div className="scroll-x">
-            <table className="rows">
-              <thead><tr><th>Token</th><th>Side</th><th>Amount</th><th>Pieces</th><th>Status</th></tr></thead>
-              <tbody>
-                {open.map((order) => {
-                  const status = orderStatus(order);
-                  return (
-                    <tr key={order.id}>
-                      <td className="tok">{order.token}</td>
-                      <td className="buy">Buy</td>
-                      <td>{formatUsdg(BigInt(order.amount))}</td>
-                      <td>{piecesDone(order)} / {order.pieces.length}</td>
-                      <td><span className={`state ${STATUS_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="empty" hidden={open.length > 0}>Nothing routing. <Link className="text-link" href="/app/trade">Start a private order</Link></p>
-        </section>
-
         <section className="box" aria-label="Shielded balance">
           <div className="box-head"><h2 className="title">Shielded balance</h2><span className="mono soft">Testnet</span></div>
           <form className="form-rows flush" onSubmit={onDeposit}>
@@ -188,29 +242,13 @@ export function Overview() {
             </div>
             <div>
               <span className="name"><span className="n">03</span>Test funds</span>
-              <button
-                className="text-link mono"
-                type="button"
-                disabled={Boolean(working)}
-                onClick={() => {
-                  if (!session) return;
-                  let gotEth = false;
-                  void run(
-                    "Sending test funds to your wallet…",
-                    async () => {
-                      const drip = await requestTestFunds(session.address);
-                      gotEth = drip.eth !== "0";
-                      return drip.usdgTx;
-                    },
-                    (tx) => `${gotEth ? "100 test USDG and a little test ETH for gas are" : "100 test USDG are"} in your wallet. ${explorerTx(tx)}`,
-                  );
-                }}
-              >
+              <button className="text-link mono" type="button" disabled={Boolean(working)} onClick={getTestFunds}>
                 Get test funds
               </button>
             </div>
-            <button className="button full" type="submit" disabled={Boolean(working)}>{working ?? "Deposit"}</button>
+            <button className="button full" type="submit" disabled={Boolean(working)}>{working ? "Working…" : "Deposit"}</button>
           </form>
+          {working ? <p className="reason" aria-live="polite">{working}</p> : null}
           {funds && funds.eth === 0n ? (
             <p className="fine">Your wallet needs a little testnet ETH for gas. Get test funds sends some with the test USDG, once a day.</p>
           ) : null}
@@ -247,7 +285,44 @@ export function Overview() {
           {/* Email logins only (renders nothing otherwise); the sidebar has it too, but phones hide the sidebar. */}
           <RecoveryPhraseButton />
         </section>
+
+        <section className="box" aria-label="Orders routing now">
+          <div className="box-head"><h2 className="title">Orders routing now</h2><Link className="mono soft text-link" href="/app/orders">All orders</Link></div>
+          <div className="scroll-x">
+            <table className="rows">
+              <thead><tr><th>Token</th><th>Side</th><th>Amount</th><th>Pieces</th><th>Status</th></tr></thead>
+              <tbody>
+                {open.map((order) => {
+                  const status = orderStatus(order);
+                  return (
+                    <tr key={order.id}>
+                      <td className="tok">{order.token}</td>
+                      <td className="buy">Buy</td>
+                      <td>{formatUsdg(BigInt(order.amount))}</td>
+                      <td>{piecesDone(order)} / {order.pieces.length}</td>
+                      <td><span className={`state ${STATUS_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="empty" hidden={open.length > 0}>Nothing routing. <Link className="text-link" href="/app/trade">Start a private order</Link></p>
+        </section>
       </div>
+
+      <section className="clock" aria-label="Market hours">
+        <div className="clock-head">
+          <h2 className="title">Market hours</h2>
+          <p><span className="state done">US market open</span><span className="mono soft">Closes in 3 h 12 min · sample</span></p>
+        </div>
+        <div className="day" role="img" aria-label="The US market is open from 14:30 to 21:00 UTC. It is 17:48 UTC now.">
+          <span className="session" style={{ left: "60.42%", width: "27.08%" }}></span>
+          <span className="now" style={{ left: "74.17%" }}><i>17:48</i></span>
+        </div>
+        <div className="hours mono soft"><span>00</span><span>06</span><span>12</span><span>18</span><span>24 UTC</span></div>
+        <p className="fine">Pools trade around the clock, but their prices drift from the real stock while the market is closed.</p>
+      </section>
 
       <Dialog
         open={Boolean(takeBack)}

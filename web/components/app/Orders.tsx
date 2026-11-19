@@ -103,7 +103,7 @@ export function Orders() {
               </tbody>
             </table>
           </div>
-          <p className="empty" hidden={visible.length > 0}>No orders with this status. <Link className="text-link" href="/app/trade">Start a private order</Link></p>
+          <p className="empty" hidden={visible.length > 0}>{orders.length === 0 ? "No orders yet." : "No orders with this status."} <Link className="text-link" href="/app/trade">Start a private order</Link></p>
         </section>
 
         {session ? <Holdings /> : null}

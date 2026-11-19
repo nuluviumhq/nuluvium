@@ -910,6 +910,84 @@ button.text-link { text-transform: uppercase; }
   .doc section > .code, .doc section > .scroll-x { margin-left: 0; }
 }
 
+
+/* ---------- app comfort (2026-11-19 UX pass) ----------
+   App pages only (.app, .mobile-bar). Same fonts and colours; larger small text, clearer
+   inactive nav, form first on phones, a getting-started checklist and a phone account menu. */
+
+/* App pages: the rem scale stops shrinking at 14px (laptops and small windows), so body text stays
+   readable. Site pages keep the pure viewport scale. Phones have their own clamp below 900px. */
+@media (min-width: 901px) {
+  :root:has(.app) { font-size: max(calc(min(100vw, 1440px) / 90), 14px); }
+}
+
+/* Small text: never under 11px (12px on phones). The rem scale shrinks below 1440px wide. */
+.app-main .fine { font-size: max(0.75rem, 11px); line-height: 1.55; }
+.app-main .mono, .app-main .sample, .app-main .rows th, .app-main .form-rows .value small,
+.app-main .stage-label, .app-main .rows .hash, .app-main .claim-state, .app-main .code,
+.app-main .day .now i { font-size: max(0.75rem, 11px); }
+.app-main .chip-dot { font-size: max(0.8125rem, 12px); }
+.sidebar .foot .mono, .sidebar .foot .addr { font-size: max(0.75rem, 11px); }
+
+/* Inactive pages read as links, not as disabled items. */
+.sidebar nav a .t { color: rgba(12, 54, 40, 0.5); }
+.sidebar nav a .n { opacity: 0.5; }
+.sidebar nav a:hover .t { color: var(--green); }
+
+/* A disabled button looks disabled (it looked the same as an active one). */
+.app-main button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Small windows: the two boxes stack, so their tables are not cut off at the larger text size. */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .app-main .pair { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Why a button cannot be used, shown next to it rather than in a tooltip. */
+.reason { margin-top: 0.75rem; font-size: 0.875rem; line-height: 1.4; color: var(--green-70); }
+.reason .text-link { text-transform: none; }
+
+/* A toast with a transaction link can be clicked while it shows. */
+.toast.show { pointer-events: auto; }
+.toast a { color: var(--white); text-decoration: underline; text-underline-offset: 0.2em; white-space: nowrap; }
+
+/* Getting started: four steps with their own status and action, hidden once done. */
+.onboard { margin-bottom: 1.125rem; }
+.onboard ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(14, 15, 13, 0.55); }
+.onboard li { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 1rem 0.25rem 0; border-right: 1px dashed var(--line); }
+.onboard li + li { padding-left: 1rem; }
+.onboard li:last-child { border-right: 0; }
+.onboard .step-head { display: flex; align-items: baseline; gap: 0.5rem; }
+.onboard .step-head .n { font-family: var(--mono); font-size: max(0.875rem, 12px); color: var(--green); }
+.onboard h3 { font-family: var(--serif); font-weight: 400; font-size: 1.25rem; line-height: 1.3; color: var(--green); }
+.onboard p { font-size: 0.9375rem; line-height: 1.45; color: var(--green-70); }
+.onboard li.done h3 { color: var(--green-70); text-decoration: line-through; text-decoration-color: var(--green-20); }
+.onboard li .button, .onboard li .text-link { align-self: flex-start; margin-top: auto; }
+
+/* Phone account menu: the address opens Recovery phrase and Log out. */
+.account-menu { position: relative; }
+.account-menu summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-radius: 0.25rem; background: var(--green-10); }
+.account-menu summary::-webkit-details-marker { display: none; }
+.account-menu summary::after { content: ""; width: 0.35rem; height: 0.35rem; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: translateY(-0.15rem) rotate(45deg); }
+.account-menu[open] summary::after { transform: translateY(0.1rem) rotate(-135deg); }
+.account-menu .menu-panel { position: absolute; right: 0; top: calc(100% + 0.5rem); min-width: 13rem; display: grid; gap: 0.25rem; padding: 0.75rem; border-radius: 0.5rem; background: var(--white); box-shadow: inset 0 0 0 1px var(--line), 0 1rem 2rem rgba(12, 54, 40, 0.12); z-index: 30; }
+.account-menu .menu-panel > * { justify-self: start; padding: 0.5rem 0.25rem; }
+
+@media (max-width: 900px) {
+  .app-main .fine, .app-main .mono, .app-main .sample, .app-main .rows th,
+  .app-main .form-rows .value small, .app-main .stage-label, .app-main .rows .hash,
+  .app-main .claim-state, .app-main .code, .app-main .day .now i { font-size: 12px; }
+  .onboard ol { grid-template-columns: minmax(0, 1fr); }
+  .overview > .ledger { order: -1; }
+  .onboard li, .onboard li + li { padding: 1rem 0; border-right: 0; border-bottom: 1px dashed var(--line); }
+  .onboard li:last-child { border-bottom: 0; }
+  /* Trade: the order form comes first, the picture of its pieces after it, smaller. */
+  .app-main[data-page="trade"] .split > .ledger { order: -1; }
+  .app-main[data-page="trade"] .split > .stage { padding: 1.5rem 1rem; gap: 1rem; }
+  .app-main[data-page="trade"] .tiles.three { grid-template-columns: repeat(9, 1.35rem); gap: 0.6rem; }
+  .app-main[data-page="trade"] .tiles.three .tile { width: 1.35rem; height: 1.35rem; }
+  .app-main[data-page="trade"] .stage .dash { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
