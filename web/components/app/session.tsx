@@ -142,6 +142,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [session]);
 
   // Unlocked: read the balance and start the order engine (resumes pieces still scheduled).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ordersEpoch is a restart signal (after a restore), not read inside
   useEffect(() => {
     if (!session) {
       setBalance({ state: "idle" });

@@ -28,7 +28,7 @@ export function Choice<T extends string | number>({ value, options, onChange, la
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement | null>(null);
   const button = useRef<HTMLButtonElement | null>(null);
-  const list = useRef<HTMLUListElement | null>(null);
+  const list = useRef<HTMLDivElement | null>(null);
   const typed = useRef({ text: "", at: 0 });
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const current = options[selectedIndex];
@@ -118,7 +118,7 @@ export function Choice<T extends string | number>({ value, options, onChange, la
         <span className="choice-chevron" aria-hidden="true"></span>
       </button>
       {open ? (
-        <ul
+        <div
           ref={list}
           id={`${id}-list`}
           className="choice-list"
@@ -129,7 +129,10 @@ export function Choice<T extends string | number>({ value, options, onChange, la
           onKeyDown={onListKey}
         >
           {options.map((option, index) => (
-            <li
+            // Keys are handled on the listbox (aria-activedescendant pattern), so options take no focus.
+            // biome-ignore lint/a11y/useKeyWithClickEvents: the listbox handles the keyboard for every option
+            // biome-ignore lint/a11y/useFocusableInteractive: focus stays on the listbox (aria-activedescendant)
+            <div
               key={String(option.value)}
               id={`${id}-${index}`}
               role="option"
@@ -140,9 +143,9 @@ export function Choice<T extends string | number>({ value, options, onChange, la
             >
               <span>{option.label}</span>
               {option.hint ? <small>{option.hint}</small> : null}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : null}
     </div>
   );
