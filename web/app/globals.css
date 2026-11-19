@@ -911,17 +911,135 @@ button.text-link { text-transform: uppercase; }
 }
 
 
-/* ---------- app comfort (2026-11-19 UX pass) ----------
-   App pages only (.app, .mobile-bar). Same fonts and colours; larger small text, clearer
-   inactive nav, form first on phones, a getting-started checklist and a phone account menu. */
+/* ---------- app layout "desk + rail" (2026-11-19, option C picked by the user) ----------
+   App pages only (.app, .mobile-bar). Same fonts and colours as the site, used differently:
+   dark green sidebar, cream work area, white cards; a right rail holds what you act on
+   (balance, deposit, getting started on Overview; the order ticket on Trade).
+   Also: readable text sizes, step-by-step feedback and a phone account menu. */
 
-/* App pages: the rem scale stops shrinking at 14px (laptops and small windows), so body text stays
-   readable. Site pages keep the pure viewport scale. Phones have their own clamp below 900px. */
+/* App pages: a calmer scale than the site. The rem is 14px up to about 1340px wide and 15px at most
+   (the site grows to 16px), so the app reads as a tool with room around it. Site pages keep the pure
+   viewport scale. Phones have their own clamp below 900px. */
 @media (min-width: 901px) {
-  :root:has(.app) { font-size: max(calc(min(100vw, 1440px) / 90), 14px); }
+  :root:has(.app) { font-size: clamp(14px, calc(100vw / 96), 15px); }
 }
 
-/* Small text: never under 11px (12px on phones). The rem scale shrinks below 1440px wide. */
+/* Work area: cream, so white cards stand out without borders. */
+.app { background: var(--cream); }
+@media (min-width: 901px) {
+  /* The sidebar is sticky at viewport height; paint its column so long pages stay green to the end. */
+  .app { background: linear-gradient(to right, var(--green) 16rem, var(--cream) 16rem); }
+  .app-main { padding-left: var(--safe); }
+}
+
+/* Dark sidebar. */
+.sidebar { background: var(--green); color: var(--white); }
+.sidebar .wordmark { color: var(--white); }
+.sidebar nav a::before { border-top-color: rgba(255, 255, 255, 0.18); }
+.sidebar nav a .n { color: var(--white); opacity: 0.5; }
+.sidebar nav a .t { color: rgba(255, 255, 255, 0.62); }
+.sidebar nav a:hover .t, .sidebar nav a[aria-current="page"] .t { color: var(--white); }
+.sidebar nav a[aria-current="page"] .n { opacity: 1; }
+.sidebar nav a[aria-current="page"]::before, .sidebar nav a[aria-current="page"] + a::before { border-top-color: rgba(255, 255, 255, 0.6); }
+.sidebar .foot .mono, .sidebar .foot .addr, .sidebar .foot .text-link { color: rgba(255, 255, 255, 0.8); }
+.sidebar .foot .text-link { text-decoration-color: rgba(255, 255, 255, 0.35); }
+/* Testnet note: in the sidebar, so the page has no top bar and content starts higher. */
+.sidebar .foot .network { justify-self: start; white-space: nowrap; margin-bottom: 0.75rem; padding: 0.4rem 0.6rem; border-radius: 0.25rem; background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.85); font-size: max(0.6875rem, 11px); }
+
+/* The full login-wallet address (wraps), with Copy and Explorer under it. */
+.addr-full { font-family: var(--mono); font-size: max(0.75rem, 11px); line-height: 1.5; word-break: break-all; }
+.addr-actions { display: flex; gap: 1rem; }
+.sidebar .foot .addr-actions .text-link { margin-top: 0; }
+.account-menu .menu-panel .addr-full { max-width: 15rem; color: var(--ink); }
+
+/* Page titles: a tool, not a landing page. No top bar above them: they line up with the wordmark. */
+.app-title { padding: 1.5rem 0 1.5rem; }
+.app-title .display { font-size: 2.25rem; }
+.app-title .lead { margin-top: 0.4rem; font-size: 1rem; color: var(--green-70); }
+
+/* Cards: white on cream. Existing boxes and the dot-grid stage follow. */
+.app-main .box, .app-card { background: var(--white); border-radius: 0.75rem; box-shadow: none; padding: 1.5rem; }
+.app-main .stage { background-color: var(--white); }
+.app-main .box .stage, .app-card .stage { background-color: var(--cream); }
+/* Inside a card the picture only needs room for itself. */
+.app-card .stage { min-height: 0; padding: 2.5rem 1rem; }
+.app-main .clock { background: var(--white); border-radius: 0.75rem; box-shadow: none; }
+.app-main .prompt { background: var(--white); border-radius: 0.75rem; }
+.app-main .split > .ledger { background: var(--white); border-radius: 0.75rem; padding: 1.5rem; }
+.app-main .pair { gap: 1rem; }
+/* Numbered cards beside a picture (Proof, Agents): the card gets the wider half, long labels wrap. */
+.app-main .split { gap: 1rem; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr); }
+.app-main .form-rows .name { white-space: normal; min-width: 0; }
+.app-main .claim-state { flex: 0 1 auto; min-width: 0; text-align: right; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1.1rem; }
+.card-head .title { color: var(--ink); }
+
+/* Lighter table lines inside cards. */
+.app-main .rows th { border-bottom-color: rgba(12, 54, 40, 0.18); }
+.app-main .rows td { border-bottom: 1px solid rgba(12, 54, 40, 0.08); }
+.app-main .rows + .empty, .app-main .scroll-x + .empty { border-top: 0; }
+
+/* Desk: what you read on the left, what you act on in the rail. */
+.desk { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; gap: 1rem; align-items: start; }
+.desk-main, .desk-rail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; align-content: start; }
+.desk-rail { position: sticky; top: 1rem; }
+.desk-main > .clock { margin-bottom: 0; }
+
+/* Rail: the balance, big. */
+.balance-card .label { font-family: var(--mono); font-size: max(0.75rem, 11px); letter-spacing: 0.06em; text-transform: uppercase; color: var(--green-70); }
+.balance-card .big { margin-top: 0.5rem; font-family: var(--serif); font-size: 3.25rem; line-height: 1; letter-spacing: -0.02em; color: var(--green); }
+.balance-card .big small { font-family: var(--mono); font-size: 0.875rem; color: var(--green-70); margin-left: 0.35rem; }
+.balance-card .sub { margin-top: 0.6rem; font-size: 0.9375rem; color: var(--green-70); }
+.balance-card .button { margin-top: 1.25rem; }
+
+/* Overview: three small figures above the tables. */
+.stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0; }
+.stat-row div { background: var(--white); border-radius: 0.75rem; padding: 1.25rem 1.5rem; }
+.stat-row dt { font-size: 0.875rem; color: var(--green-70); }
+.stat-row dd { margin: 0.4rem 0 0; font-family: var(--serif); font-size: 2rem; line-height: 1; color: var(--green); }
+
+/* Getting started in the rail: a vertical checklist, the open step with its button. */
+.check-list { list-style: none; margin: 0; padding: 0; }
+.check-list li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.5rem; padding: 0.75rem 0; border-top: 1px solid rgba(12, 54, 40, 0.08); }
+.check-list .tick { width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 1px solid var(--green-20); margin-top: 0.15rem; }
+.check-list li.done .tick { background: var(--green); border-color: var(--green); }
+.check-list strong { font-weight: 500; color: var(--green); }
+.check-list li.done strong { font-weight: 400; color: var(--green-70); text-decoration: line-through; text-decoration-color: var(--green-20); }
+.check-list p { margin-top: 0.2rem; font-size: 0.875rem; line-height: 1.45; color: var(--green-70); }
+.check-list .button, .check-list .state { margin-top: 0.6rem; }
+
+/* Order ticket in the rail. */
+.desk-rail .ledger .form-rows + .form-rows { margin-top: 0; }
+
+/* Account page. */
+.card-text { max-width: 40rem; line-height: 1.5; color: var(--green-70); }
+.button-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+.button-row .button.outline { box-shadow: inset 0 0 0 1px var(--green-20); }
+.form-rows > .stack-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+.stack-row .addr-full { padding-left: 1.9rem; color: var(--green); }
+.where-list { margin: 0; }
+.where-list div { padding: 0.85rem 0; border-top: 1px solid rgba(12, 54, 40, 0.08); }
+.where-list div:first-child { border-top: 0; padding-top: 0; }
+.where-list dt { font-weight: 500; color: var(--green); }
+.where-list dd { margin: 0.25rem 0 0; font-size: 0.9375rem; line-height: 1.45; color: var(--green-70); }
+
+/* The content stops growing at 66rem and sits centred beside the sidebar, with white space around it. */
+.app-main > * { max-width: 66rem; margin-left: auto; margin-right: auto; }
+@media (min-width: 1280px) {
+  .app-main { padding-left: 3rem; padding-right: 3rem; }
+}
+
+/* Loading: a quiet placeholder where a figure will appear, so the layout does not jump. */
+.skeleton { display: inline-block; min-width: 3.5em; height: 0.8em; border-radius: 0.25rem; vertical-align: middle; color: transparent; background: linear-gradient(90deg, var(--green-10), rgba(12, 54, 40, 0.04), var(--green-10)); background-size: 200% 100%; animation: skeleton 1.4s ease-in-out infinite; }
+@keyframes skeleton { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* Trade preview: how the order will go out. */
+.plan-list { margin: 1.25rem 0 0; }
+.plan-list div { display: flex; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; border-top: 1px solid rgba(12, 54, 40, 0.08); }
+.plan-list dt { color: var(--green-70); }
+.plan-list dd { margin: 0; text-align: right; color: var(--green); }
+
+/* Small text: never under 11px (12px on phones). */
 .app-main .fine { font-size: max(0.75rem, 11px); line-height: 1.55; }
 .app-main .mono, .app-main .sample, .app-main .rows th, .app-main .form-rows .value small,
 .app-main .stage-label, .app-main .rows .hash, .app-main .claim-state, .app-main .code,
@@ -929,18 +1047,11 @@ button.text-link { text-transform: uppercase; }
 .app-main .chip-dot { font-size: max(0.8125rem, 12px); }
 .sidebar .foot .mono, .sidebar .foot .addr { font-size: max(0.75rem, 11px); }
 
-/* Inactive pages read as links, not as disabled items. */
-.sidebar nav a .t { color: rgba(12, 54, 40, 0.5); }
-.sidebar nav a .n { opacity: 0.5; }
-.sidebar nav a:hover .t { color: var(--green); }
+/* Dialogs are rendered outside .app-main: same floor for their fine print. */
+.modal .fine { font-size: max(0.75rem, 11px); line-height: 1.55; }
 
-/* A disabled button looks disabled (it looked the same as an active one). */
+/* A disabled button looks disabled. */
 .app-main button:disabled { opacity: 0.45; cursor: not-allowed; }
-
-/* Small windows: the two boxes stack, so their tables are not cut off at the larger text size. */
-@media (min-width: 901px) and (max-width: 1180px) {
-  .app-main .pair { grid-template-columns: minmax(0, 1fr); }
-}
 
 /* Why a button cannot be used, shown next to it rather than in a tooltip. */
 .reason { margin-top: 0.75rem; font-size: 0.875rem; line-height: 1.4; color: var(--green-70); }
@@ -950,42 +1061,42 @@ button.text-link { text-transform: uppercase; }
 .toast.show { pointer-events: auto; }
 .toast a { color: var(--white); text-decoration: underline; text-underline-offset: 0.2em; white-space: nowrap; }
 
-/* Getting started: four steps with their own status and action, hidden once done. */
-.onboard { margin-bottom: 1.125rem; }
-.onboard ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(14, 15, 13, 0.55); }
-.onboard li { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 1rem 0.25rem 0; border-right: 1px dashed var(--line); }
-.onboard li + li { padding-left: 1rem; }
-.onboard li:last-child { border-right: 0; }
-.onboard .step-head { display: flex; align-items: baseline; gap: 0.5rem; }
-.onboard .step-head .n { font-family: var(--mono); font-size: max(0.875rem, 12px); color: var(--green); }
-.onboard h3 { font-family: var(--serif); font-weight: 400; font-size: 1.25rem; line-height: 1.3; color: var(--green); }
-.onboard p { font-size: 0.9375rem; line-height: 1.45; color: var(--green-70); }
-.onboard li.done h3 { color: var(--green-70); text-decoration: line-through; text-decoration-color: var(--green-20); }
-.onboard li .button, .onboard li .text-link { align-self: flex-start; margin-top: auto; }
-
 /* Phone account menu: the address opens Recovery phrase and Log out. */
 .account-menu { position: relative; }
-.account-menu summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-radius: 0.25rem; background: var(--green-10); }
+.account-menu summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-radius: 0.25rem; background: rgba(255, 255, 255, 0.15); color: var(--white); }
 .account-menu summary::-webkit-details-marker { display: none; }
 .account-menu summary::after { content: ""; width: 0.35rem; height: 0.35rem; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: translateY(-0.15rem) rotate(45deg); }
 .account-menu[open] summary::after { transform: translateY(0.1rem) rotate(-135deg); }
-.account-menu .menu-panel { position: absolute; right: 0; top: calc(100% + 0.5rem); min-width: 13rem; display: grid; gap: 0.25rem; padding: 0.75rem; border-radius: 0.5rem; background: var(--white); box-shadow: inset 0 0 0 1px var(--line), 0 1rem 2rem rgba(12, 54, 40, 0.12); z-index: 30; }
+.account-menu .menu-panel { position: absolute; right: 0; top: calc(100% + 0.5rem); min-width: 13rem; display: grid; gap: 0.25rem; padding: 0.75rem; border-radius: 0.5rem; background: var(--white); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line), 0 1rem 2rem rgba(12, 54, 40, 0.12); z-index: 30; }
 .account-menu .menu-panel > * { justify-self: start; padding: 0.5rem 0.25rem; }
 
+/* Small windows: narrower rail, stacked pairs, a smaller tile grid. */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .desk { grid-template-columns: minmax(0, 1fr) 20rem; }
+  .app-main .pair { grid-template-columns: minmax(0, 1fr); }
+  .desk-main .tiles { grid-template-columns: repeat(9, 1.35rem); gap: 0.75rem; }
+  .desk-main .tile { width: 1.35rem; height: 1.35rem; }
+}
+
 @media (max-width: 900px) {
+  .mobile-bar { background: var(--green); color: var(--white); backdrop-filter: none; }
+  .mobile-bar .button { background: var(--white); color: var(--green); }
+  .app-title .display { font-size: 2rem; }
+  /* Phones: the rail (balance, deposit, the order ticket) comes first. */
+  .desk { grid-template-columns: minmax(0, 1fr); }
+  .desk-rail { position: static; order: -1; }
+  /* Phones: an unfinished checklist comes before the balance. */
+  .desk-rail > .onboard-card { order: -1; }
+  /* Account: the rail only explains, so the actions stay first. */
+  .desk.rail-last .desk-rail { order: 0; }
+  .app-main .split { grid-template-columns: minmax(0, 1fr); }
+  .stat-row { gap: 0.5rem; }
+  .stat-row div { padding: 1rem; }
+  .stat-row dd { font-size: 1.5rem; }
+  .app-main .box, .app-card, .app-main .split > .ledger { padding: 1.25rem; }
   .app-main .fine, .app-main .mono, .app-main .sample, .app-main .rows th,
   .app-main .form-rows .value small, .app-main .stage-label, .app-main .rows .hash,
   .app-main .claim-state, .app-main .code, .app-main .day .now i { font-size: 12px; }
-  .onboard ol { grid-template-columns: minmax(0, 1fr); }
-  .overview > .ledger { order: -1; }
-  .onboard li, .onboard li + li { padding: 1rem 0; border-right: 0; border-bottom: 1px dashed var(--line); }
-  .onboard li:last-child { border-bottom: 0; }
-  /* Trade: the order form comes first, the picture of its pieces after it, smaller. */
-  .app-main[data-page="trade"] .split > .ledger { order: -1; }
-  .app-main[data-page="trade"] .split > .stage { padding: 1.5rem 1rem; gap: 1rem; }
-  .app-main[data-page="trade"] .tiles.three { grid-template-columns: repeat(9, 1.35rem); gap: 0.6rem; }
-  .app-main[data-page="trade"] .tiles.three .tile { width: 1.35rem; height: 1.35rem; }
-  .app-main[data-page="trade"] .stage .dash { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

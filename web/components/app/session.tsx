@@ -21,8 +21,8 @@ import { WalletError, depositToPool, explorerTx, setActiveProvider, shortAddress
 
 /** Beta caps enforced by the approved-set provider (asp/src/screen.js). */
 export const DEPOSIT_CAP = 1_000n * 1_000_000n;
-const MIN_PIECE = 1_000_000n; // 1 tUSDG
-const START_DELAY_SECONDS = 30;
+export const MIN_PIECE = 1_000_000n; // 1 tUSDG
+export const START_DELAY_SECONDS = 30;
 
 interface Session {
   address: `0x${string}`;
@@ -68,6 +68,11 @@ interface SessionContext {
   /** Plans and schedules an order; returns it, or throws with a message for the person. */
   placeOrder: (order: NewOrder) => Promise<Order>;
   cancelOrder: (id: string) => Promise<number>;
+  /**
+   * Runs `work` with the order engine stopped (so it cannot write the schedule meanwhile), then
+   * starts it again, reading the schedule fresh. Used by Account for restore and clear.
+   */
+  withOrdersPaused: <T>(work: () => Promise<T>) => Promise<T>;
   deposit: (amount: bigint, onStep?: (step: WalletStep) => void) => Promise<string>;
 }
 
@@ -94,6 +99,8 @@ export function friendlyError(error: unknown): string {
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  // Bumped to restart the order engine after its stored schedule changed underneath it.
+  const [ordersEpoch, setOrdersEpoch] = useState(0);
   const [balance, setBalance] = useState<BalanceState>({ state: "idle" });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastTx, setToastTx] = useState<string | null>(null);
@@ -149,7 +156,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       current.stop();
       engine.current = null;
     };
-  }, [session, refreshBalance]);
+    // ordersEpoch: a restart after a restore reads the new schedule.
+  }, [session, refreshBalance, ordersEpoch]);
 
   // While a deposit waits for approval, look again every 20 s (the ASP posts within about a minute).
   useEffect(() => {
@@ -364,6 +372,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     orders,
     placeOrder,
     cancelOrder: async (id) => (engine.current ? engine.current.cancel(id) : 0),
+    withOrdersPaused: async (work) => {
+      engine.current?.stop();
+      // Let a save already under way finish before the schedule is touched.
+      await engine.current?.idle();
+      try {
+        return await work();
+      } finally {
+        setOrdersEpoch((epoch) => epoch + 1);
+      }
+    },
     deposit: async (amount, onStep) => {
       if (!session) throw new Error("Log in first.");
       if (amount > DEPOSIT_CAP) throw new Error("Deposits are capped at 1,000 tUSDG until the audit.");

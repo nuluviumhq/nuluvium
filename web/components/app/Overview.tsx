@@ -5,19 +5,23 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { formatUsdg, parseUsdg, readWalletFunds, type ShieldedNote } from "@/lib/chain";
+import { formatUsdg, parseUsdg, readWalletFunds, unitsToInput, type ShieldedNote } from "@/lib/chain";
 import { requestTestFunds } from "@/lib/faucet";
 import { ragequitDeposit } from "@/lib/exits";
 import { STATUS_CLASS, STATUS_LABEL, marble } from "@/lib/format";
 import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
 import { shortAddress, type WalletStep } from "@/lib/wallet";
 import { Dialog } from "./Dialog";
+import { MarketHours } from "./MarketHours";
 import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { DEPOSIT_CAP, friendlyError, useSession } from "./session";
 
 const TILE_COUNT = 45;
 const APPROVAL_LABEL = { approved: "Approved", waiting: "Checking, about a minute", rejected: "Not approved" } as const;
 const APPROVAL_CLASS = { approved: "done", waiting: "scheduled", rejected: "expired" } as const;
+/** Quick-fill buttons: share of the wallet's tUSDG, in percent. */
+const QUICK_FILL: Array<[string, bigint]> = [["25%", 25n], ["50%", 50n], ["Max", 100n]];
+const minBig = (a: bigint, b: bigint) => (a < b ? a : b);
 // Getting started can be hidden by hand (for people whose orders live in another browser).
 const ONBOARD_HIDDEN_KEY = "nuluvium.onboard.hidden";
 
@@ -133,196 +137,259 @@ export function Overview() {
   const showOnboard = loggedIn && !onboardHidden && current !== null && balance.state === "ready" && funds !== null;
   const stepClass = (id: keyof typeof steps) => (steps[id] ? "done" : current === id ? "current" : undefined);
 
+  // Balance card figures: total, and how much of it can be spent now.
+  const ready = balance.value?.approved;
+  const checking = notes.filter((note) => note.approval === "waiting").reduce((sum, note) => sum + note.value, 0n);
+  const doneCount = Object.values(steps).filter(Boolean).length;
+
+  const pieceTiles = (
+    <div className="tiles" role="img" aria-label="Pieces of your orders">
+      {Array.from({ length: TILE_COUNT }, (_, index) =>
+        index < sent ? (
+          <span key={index} className="tile mine-filled" style={marble(index)} />
+        ) : index < sent + waiting ? (
+          <span key={index} className="tile mine-sealed" style={marble(index)} />
+        ) : (
+          <span key={index} className="tile" />
+        ),
+      )}
+    </div>
+  );
+
+  const marketHours = <MarketHours />;
+
   return (
     <>
       <header className="app-title">
         <h1 className="display">Overview</h1>
-        <p className="lead">Your shielded balance and the orders it is routing.</p>
       </header>
 
       {/* Logged out: a prompt, not a blank page. */}
-      <section className="prompt" hidden={loggedIn}>
-        <div>
-          <h2 className="title">Log in to see your balance and orders</h2>
-          <p>Then four short steps: free test funds, a deposit, a minute for the clean-funds check, and your first private order. About three minutes.</p>
-        </div>
-        <button className="button" type="button" onClick={() => openLogin()}>Log in</button>
-      </section>
+      {!loggedIn ? (
+        <>
+          <section className="prompt">
+            <div>
+              <h2 className="title">Log in to see your balance and orders</h2>
+              <p>Then four short steps: free test funds, a deposit, a minute for the clean-funds check, and your first private order. About three minutes.</p>
+            </div>
+            <button className="button" type="button" onClick={() => openLogin()}>Log in</button>
+          </section>
+          {marketHours}
+        </>
+      ) : (
+        <div className="desk">
+          {/* Left: what you read. */}
+          <div className="desk-main">
+            <dl className="stat-row">
+              <div><dt>Orders routing</dt><dd>{balance.state === "ready" ? open.length : <span className="skeleton">…</span>}</dd></div>
+              <div><dt>Pieces sent</dt><dd>{balance.state === "ready" ? sent : <span className="skeleton">…</span>}</dd></div>
+              <div><dt>Ready to spend</dt><dd>{ready === undefined ? <span className="skeleton">…</span> : formatUsdg(ready)}</dd></div>
+            </dl>
 
-      {showOnboard ? (
-        <section className="box onboard" aria-label="Getting started">
-          <div className="box-head">
-            <h2 className="title">Getting started</h2>
-            <button className="text-link mono soft" type="button" onClick={hideOnboard}>Hide</button>
-          </div>
-          <ol>
-            <li className={stepClass("funds")}>
-              <div className="step-head"><span className="n">01</span><h3>Get test funds</h3></div>
-              <p>100 test USDG and a little test ETH for gas, free, once a day. Nothing to sign.</p>
-              {steps.funds ? <span className="state done">Done</span> : current === "funds" ? (
-                <button className="button" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
-              ) : null}
-            </li>
-            <li className={stepClass("deposit")}>
-              <div className="step-head"><span className="n">02</span><h3>Deposit</h3></div>
-              <p>Move tUSDG into your shielded balance. Your wallet asks twice the first time: allow, then deposit.</p>
-              {steps.deposit ? <span className="state done">Done</span> : current === "deposit" ? (
-                <button className="button" type="button" disabled={Boolean(working) || !amount} onClick={onDeposit}>Deposit {amountText} tUSDG</button>
-              ) : null}
-            </li>
-            <li className={stepClass("approved")}>
-              <div className="step-head"><span className="n">03</span><h3>Clean-funds check</h3></div>
-              <p>Each deposit is checked before it can be spent, usually within a minute. This page updates by itself.</p>
-              {steps.approved ? <span className="state done">Approved</span> : awaitingApproval ? (
-                <span className="state scheduled">Checking…</span>
-              ) : null}
-            </li>
-            <li className={stepClass("order")}>
-              <div className="step-head"><span className="n">04</span><h3>First private order</h3></div>
-              <p>Buy a stock token in pieces, each from its own fresh address.</p>
-              {steps.order ? <span className="state done">Done</span> : current === "order" ? (
-                <Link className="button" href="/app/trade">Route an order</Link>
-              ) : null}
-            </li>
-          </ol>
-          {working && current !== "order" ? <p className="reason" aria-live="polite">{working}</p> : null}
-        </section>
-      ) : null}
+            <section className="app-card" aria-label="Orders routing now">
+              <div className="card-head"><h2 className="title">Orders routing now</h2><Link className="mono soft text-link" href="/app/orders">All orders</Link></div>
+              <div className="scroll-x">
+                <table className="rows">
+                  <thead><tr><th>Token</th><th>Side</th><th>Amount</th><th>Pieces</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {open.map((order) => {
+                      const status = orderStatus(order);
+                      return (
+                        <tr key={order.id}>
+                          <td className="tok">{order.token}</td>
+                          <td className="buy">Buy</td>
+                          <td>{formatUsdg(BigInt(order.amount))}</td>
+                          <td>{piecesDone(order)} / {order.pieces.length}</td>
+                          <td><span className={`state ${STATUS_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="empty" hidden={open.length > 0}>Nothing routing. <Link className="text-link" href="/app/trade">Start a private order</Link></p>
+            </section>
 
-      <div className="overview" hidden={!loggedIn}>
-        {/* One tile per piece of your orders. */}
-        <section className="stage" aria-label="Your pieces">
-          <p className="stage-label">{sent} pieces sent · {waiting} waiting</p>
-          <div className="tiles" role="img" aria-label="Pieces of your orders">
-            {Array.from({ length: TILE_COUNT }, (_, index) =>
-              index < sent ? (
-                <span key={index} className="tile mine-filled" style={marble(index)} />
-              ) : index < sent + waiting ? (
-                <span key={index} className="tile mine-sealed" style={marble(index)} />
+            {/* One tile per piece of your orders. */}
+            <section className="app-card" aria-label="Your pieces">
+              <div className="card-head"><h2 className="title">Your pieces</h2><span className="mono soft">{sent} sent · {waiting} waiting</span></div>
+              {sent + waiting === 0 ? (
+                // Empty: one line, not a grid of empty squares.
+                <p className="empty">No pieces yet. Each order goes out in pieces, one tile each. <Link className="text-link" href="/app/trade">Start a private order</Link></p>
               ) : (
-                <span key={index} className="tile" />
-              ),
-            )}
-          </div>
-          <div className="chips">
-            <span className="chip-dot mine-filled">Went out</span>
-            <span className="chip-dot mine-sealed">Waiting in the window</span>
-            <span className="chip-dot">Room for the next ones</span>
-          </div>
-        </section>
+                <div className="stage">
+                  {pieceTiles}
+                  <div className="chips">
+                    <span className="chip-dot mine-filled">Went out</span>
+                    <span className="chip-dot mine-sealed">Waiting in the window</span>
+                    <span className="chip-dot">Room for the next ones</span>
+                  </div>
+                </div>
+              )}
+            </section>
 
-        <section className="ledger" aria-label="Your figures">
-          <p className="ledger-intro">Your account, as only you can see it.</p>
-          <dl>
-            <div><dt><span className="n">01</span>Shielded balance</dt><dd aria-live="polite">{balanceText}</dd></div>
-            <div><dt><span className="n">02</span>Orders routing</dt><dd>{open.length}</dd></div>
-            <div><dt><span className="n">03</span>Pieces sent</dt><dd>{sent}</dd></div>
-            <div><dt><span className="n">04</span>Linked to your wallet</dt><dd>0</dd></div>
-          </dl>
-          <Link className="button full" href="/app/trade">New private order</Link>
-        </section>
-      </div>
+            <section className="app-card" aria-label="Deposits">
+              <div className="card-head"><h2 className="title">Deposits</h2><span className="mono soft">Public</span></div>
+              <div className="scroll-x">
+                <table className="rows narrow">
+                  <thead><tr><th>Deposit</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    {notes.map((note) => {
+                      const ownWallet = session && note.depositor.toLowerCase() === session.address.toLowerCase();
+                      const busy = busyDeposits.has(note.depositIndex.toString());
+                      return (
+                        <tr key={note.depositIndex.toString()}>
+                          <td className="hash">#{note.depositIndex.toString()}</td>
+                          <td>{formatUsdg(note.value)}</td>
+                          <td>
+                            <span className={`state ${APPROVAL_CLASS[note.approval]}`} title={note.reason}>{APPROVAL_LABEL[note.approval]}</span>
+                          </td>
+                          <td>
+                            {!ownWallet ? (
+                              <span className="mono soft" title={`Only ${shortAddress(note.depositor)}, the wallet that made it, can take it back.`}>Other wallet</span>
+                            ) : busy ? (
+                              <span className="mono soft" title="An open order is paying from this deposit. Cancel it first.">In use</span>
+                            ) : (
+                              <button className="text-link mono" type="button" disabled={Boolean(working)} onClick={() => setTakeBack(note)}>Take back</button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="empty" hidden={notes.length > 0 || balance.state !== "ready"}>No deposits yet. Use the Deposit form to move tUSDG into your shielded balance.</p>
+              <p className="fine">A deposit is public; what you do with it next is not linked to it. Take back returns what is left of a deposit to the wallet that made it, approved or not.</p>
+            </section>
 
-      <div className="pair" hidden={!loggedIn}>
-        <section className="box" aria-label="Shielded balance">
-          <div className="box-head"><h2 className="title">Shielded balance</h2><span className="mono soft">Testnet</span></div>
-          <form className="form-rows flush" onSubmit={onDeposit}>
-            <label>
-              <span className="name"><span className="n">01</span>Deposit</span>
-              <span className="value">
-                <input name="deposit" type="text" inputMode="decimal" value={amountText} onChange={(event) => setAmountText(event.target.value)} aria-label="Amount to deposit" />
-                <small>tUSDG</small>
-              </span>
-            </label>
-            <div>
-              <span className="name"><span className="n">02</span>In your wallet</span>
-              <span className="value">
-                {funds ? `${formatUsdg(funds.usdg)}` : "…"} <small>tUSDG</small>
-              </span>
-            </div>
-            <div>
-              <span className="name"><span className="n">03</span>Test funds</span>
-              <button className="text-link mono" type="button" disabled={Boolean(working)} onClick={getTestFunds}>
-                Get test funds
-              </button>
-            </div>
-            <button className="button full" type="submit" disabled={Boolean(working)}>{working ? "Working…" : "Deposit"}</button>
-          </form>
-          {working ? <p className="reason" aria-live="polite">{working}</p> : null}
-          {funds && funds.eth === 0n ? (
-            <p className="fine">Your wallet needs a little testnet ETH for gas. Get test funds sends some with the test USDG, once a day.</p>
-          ) : null}
-          <div className="scroll-x">
-            <table className="rows narrow">
-              <thead><tr><th>Deposit</th><th>Balance</th><th>Status</th><th></th></tr></thead>
-              <tbody>
-                {(balance.value?.notes ?? []).map((note) => {
-                  const ownWallet = session && note.depositor.toLowerCase() === session.address.toLowerCase();
-                  const busy = busyDeposits.has(note.depositIndex.toString());
-                  return (
-                    <tr key={note.depositIndex.toString()}>
-                      <td className="hash">#{note.depositIndex.toString()}</td>
-                      <td>{formatUsdg(note.value)}</td>
-                      <td>
-                        <span className={`state ${APPROVAL_CLASS[note.approval]}`} title={note.reason}>{APPROVAL_LABEL[note.approval]}</span>
-                      </td>
-                      <td>
-                        {!ownWallet ? (
-                          <span className="mono soft" title={`Only ${shortAddress(note.depositor)}, the wallet that made it, can take it back.`}>Other wallet</span>
-                        ) : busy ? (
-                          <span className="mono soft" title="An open order is paying from this deposit. Cancel it first.">In use</span>
-                        ) : (
-                          <button className="text-link mono" type="button" disabled={Boolean(working)} onClick={() => setTakeBack(note)}>Take back</button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {marketHours}
           </div>
-          <p className="fine">A deposit is public; what you do with it next is not linked to it. Up to 1,000 tUSDG per deposit until the audit. A deposit can be spent once the clean-funds check approves it, usually within a minute. Take back returns what is left of a deposit to the wallet that made it, approved or not.</p>
-          {/* Email logins only (renders nothing otherwise); the sidebar has it too, but phones hide the sidebar. */}
-          <RecoveryPhraseButton />
-        </section>
 
-        <section className="box" aria-label="Orders routing now">
-          <div className="box-head"><h2 className="title">Orders routing now</h2><Link className="mono soft text-link" href="/app/orders">All orders</Link></div>
-          <div className="scroll-x">
-            <table className="rows">
-              <thead><tr><th>Token</th><th>Side</th><th>Amount</th><th>Pieces</th><th>Status</th></tr></thead>
-              <tbody>
-                {open.map((order) => {
-                  const status = orderStatus(order);
-                  return (
-                    <tr key={order.id}>
-                      <td className="tok">{order.token}</td>
-                      <td className="buy">Buy</td>
-                      <td>{formatUsdg(BigInt(order.amount))}</td>
-                      <td>{piecesDone(order)} / {order.pieces.length}</td>
-                      <td><span className={`state ${STATUS_CLASS[status]}`}>{STATUS_LABEL[status]}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="empty" hidden={open.length > 0}>Nothing routing. <Link className="text-link" href="/app/trade">Start a private order</Link></p>
-        </section>
-      </div>
+          {/* Right: what you act on. On phones this comes first. */}
+          <aside className="desk-rail" aria-label="Your balance">
+            <section className="app-card balance-card" aria-label="Shielded balance">
+              <p className="label">Shielded balance · only you see this</p>
+              <p className="big" aria-live="polite">
+                {balance.state === "ready" && balance.value ? (
+                  <>{formatUsdg(balance.value.total)}<small>tUSDG</small></>
+                ) : balance.state === "failed" ? (
+                  balanceText
+                ) : (
+                  <span className="skeleton">…</span>
+                )}
+              </p>
+              <p className="sub">
+                {ready === undefined ? <span className="skeleton">…</span> : formatUsdg(ready)} ready{checking > 0n ? ` · ${formatUsdg(checking)} being checked` : ""}
+                <br />Linked to your wallet: 0. Trades go out from fresh addresses.
+              </p>
+              <Link className="button full" href="/app/trade">New private order</Link>
+            </section>
 
-      <section className="clock" aria-label="Market hours">
-        <div className="clock-head">
-          <h2 className="title">Market hours</h2>
-          <p><span className="state done">US market open</span><span className="mono soft">Closes in 3 h 12 min · sample</span></p>
+            <section className="app-card" aria-label="Deposit">
+              <div className="card-head">
+                <h2 className="title">Deposit</h2>
+                <button className="text-link mono" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
+              </div>
+              <form className="form-rows flush" onSubmit={onDeposit}>
+                <label>
+                  <span className="name"><span className="n">01</span>Amount</span>
+                  <span className="value">
+                    <input name="deposit" type="text" inputMode="decimal" value={amountText} onChange={(event) => setAmountText(event.target.value)} aria-label="Amount to deposit" />
+                    <small>tUSDG</small>
+                  </span>
+                </label>
+                <div>
+                  <span className="name"><span className="n"></span>Fill</span>
+                  <span className="pick" role="group" aria-label="Fill the deposit amount">
+                    {QUICK_FILL.map(([label, share]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={!funds || funds.usdg === 0n}
+                        onClick={() => funds && setAmountText(unitsToInput(minBig((funds.usdg * share) / 100n, DEPOSIT_CAP)))}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+                <div>
+                  <span className="name"><span className="n">02</span>In your wallet</span>
+                  <span className="value">{funds ? `${formatUsdg(funds.usdg)}` : <span className="skeleton">…</span>} <small>tUSDG</small></span>
+                </div>
+                <button className="button full" type="submit" disabled={Boolean(working)}>{working ? "Working…" : "Deposit"}</button>
+              </form>
+              {working ? <p className="reason" aria-live="polite">{working}</p> : null}
+              {funds && funds.eth === 0n ? (
+                <p className="fine">Your wallet needs a little testnet ETH for gas. Get test funds sends some with the test USDG, once a day.</p>
+              ) : null}
+              <p className="fine">Up to 1,000 tUSDG per deposit until the audit. A deposit can be spent once the clean-funds check approves it, usually within a minute.</p>
+              {/* Email logins only (renders nothing otherwise); phones hide the sidebar that also has it. */}
+              <RecoveryPhraseButton />
+            </section>
+
+            {showOnboard ? (
+              <section className="app-card onboard-card" aria-label="Getting started">
+                <div className="card-head">
+                  <h2 className="title">Getting started</h2>
+                  <span className="mono soft">{doneCount} of 4 · <button className="text-link mono soft" type="button" onClick={hideOnboard}>Hide</button></span>
+                </div>
+                <ol className="check-list">
+                  <li className={stepClass("funds")}>
+                    <span className="tick" aria-hidden="true"></span>
+                    <div>
+                      <strong>Get test funds</strong>
+                      {current === "funds" ? (
+                        <>
+                          <p>100 test USDG and a little test ETH for gas, free, once a day. Nothing to sign.</p>
+                          <button className="button" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
+                        </>
+                      ) : null}
+                    </div>
+                  </li>
+                  <li className={stepClass("deposit")}>
+                    <span className="tick" aria-hidden="true"></span>
+                    <div>
+                      <strong>Deposit</strong>
+                      {current === "deposit" ? (
+                        <>
+                          <p>Move tUSDG into your shielded balance. Your wallet asks twice the first time: allow, then deposit.</p>
+                          <button className="button" type="button" disabled={Boolean(working) || !amount} onClick={onDeposit}>Deposit {amountText} tUSDG</button>
+                        </>
+                      ) : null}
+                    </div>
+                  </li>
+                  <li className={stepClass("approved")}>
+                    <span className="tick" aria-hidden="true"></span>
+                    <div>
+                      <strong>Clean-funds check</strong>
+                      {current === "approved" ? (
+                        <>
+                          <p>Each deposit is checked before it can be spent, usually within a minute. This page updates by itself.</p>
+                          {awaitingApproval ? <span className="state scheduled">Checking…</span> : null}
+                        </>
+                      ) : null}
+                    </div>
+                  </li>
+                  <li className={stepClass("order")}>
+                    <span className="tick" aria-hidden="true"></span>
+                    <div>
+                      <strong>First private order</strong>
+                      {current === "order" ? (
+                        <>
+                          <p>Buy a stock token in pieces, each from its own fresh address.</p>
+                          <Link className="button" href="/app/trade">Route an order</Link>
+                        </>
+                      ) : null}
+                    </div>
+                  </li>
+                </ol>
+              </section>
+            ) : null}
+          </aside>
         </div>
-        <div className="day" role="img" aria-label="The US market is open from 14:30 to 21:00 UTC. It is 17:48 UTC now.">
-          <span className="session" style={{ left: "60.42%", width: "27.08%" }}></span>
-          <span className="now" style={{ left: "74.17%" }}><i>17:48</i></span>
-        </div>
-        <div className="hours mono soft"><span>00</span><span>06</span><span>12</span><span>18</span><span>24 UTC</span></div>
-        <p className="fine">Pools trade around the clock, but their prices drift from the real stock while the market is closed.</p>
-      </section>
+      )}
 
       <Dialog
         open={Boolean(takeBack)}

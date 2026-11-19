@@ -51,6 +51,11 @@ export class OrderEngine {
     this.timers.clear();
   }
 
+  /** Resolves once any schedule write already started has finished. */
+  idle(): Promise<void> {
+    return this.saving;
+  }
+
   async notes(): Promise<Note[]> {
     const { recoverNotes } = await sdk();
     const ctx = await this.context();

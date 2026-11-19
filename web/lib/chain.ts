@@ -61,6 +61,12 @@ export function parseUsdg(text: string): bigint | null {
 }
 
 /** USDG units (6 decimals) as "1,234.50". */
+/** Units → text for an amount field: no thousands separators, rounded down to whole cents. */
+export function unitsToInput(units: bigint): string {
+  const cents = units / 10_000n;
+  return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+
 export function formatUsdg(units: bigint): string {
   const whole = units / 1_000_000n;
   const cents = (units % 1_000_000n) / 10_000n;
