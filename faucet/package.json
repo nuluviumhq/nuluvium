@@ -1,0 +1,14 @@
+{
+  "name": "nuluvium-faucet",
+  "private": true,
+  "type": "module",
+  "description": "Nuluvium testnet faucet: a little test ETH and 100 test USDG per wallet per day",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "deploy": "npx -y wrangler@4 deploy"
+  },
+  "dependencies": {
+    "viem": "2.57.8"
+  }
+}

@@ -17,7 +17,7 @@ import { usePrivyState, type BridgeWallet } from "@/lib/privyState";
 import { OrderEngine } from "@/lib/engine";
 import { isOpen, type Order } from "@/lib/orders";
 import { TOKENS } from "@/lib/tokens";
-import { WalletError, depositToPool, mintTestUsdg, setActiveProvider, shortAddress, unlockWithWallet, type Eip1193Provider } from "@/lib/wallet";
+import { WalletError, depositToPool, setActiveProvider, shortAddress, unlockWithWallet, type Eip1193Provider } from "@/lib/wallet";
 
 /** Beta caps enforced by the approved-set provider (asp/src/screen.js). */
 export const DEPOSIT_CAP = 1_000n * 1_000_000n;
@@ -67,7 +67,6 @@ interface SessionContext {
   /** Plans and schedules an order; returns it, or throws with a message for the person. */
   placeOrder: (order: NewOrder) => Promise<Order>;
   cancelOrder: (id: string) => Promise<number>;
-  getTestUsdg: (amount: bigint) => Promise<string>;
   deposit: (amount: bigint) => Promise<string>;
 }
 
@@ -86,7 +85,7 @@ export function friendlyError(error: unknown): string {
   if (code === 4001) return "You declined in your wallet. Nothing was sent.";
   const short = (error as { shortMessage?: string }).shortMessage;
   if (short && /insufficient funds/i.test(short)) {
-    return "Your wallet has no testnet ETH for gas. Get some from faucet.testnet.chain.robinhood.com.";
+    return "Your wallet has no testnet ETH for gas. Use Get test funds on Overview (once a day), or the official faucet: faucet.testnet.chain.robinhood.com.";
   }
   return short ?? (error instanceof Error ? error.message : "Something went wrong. Please try again.");
 }
@@ -362,10 +361,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     orders,
     placeOrder,
     cancelOrder: async (id) => (engine.current ? engine.current.cancel(id) : 0),
-    getTestUsdg: async (amount) => {
-      if (!session) throw new Error("Log in first.");
-      return mintTestUsdg(session.address, amount);
-    },
     deposit: async (amount) => {
       if (!session) throw new Error("Log in first.");
       if (amount > DEPOSIT_CAP) throw new Error("Deposits are capped at 1,000 tUSDG until the audit.");

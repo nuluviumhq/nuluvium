@@ -43,6 +43,7 @@ no server stores the link between a user and their fresh addresses.
 | `asp/` | Approved-set provider, a Cloudflare Worker (cron screening, approved set, root posting). |
 | `relayer/` | Relayer, a Cloudflare Worker with a Durable Object queue (`GET /quote`, `POST /piece`, `POST /sell`). |
 | `stats/` | Public stats, a Cloudflare Worker: every 10 minutes it counts pool and Router events, the approved set and the relayer into totals (`GET /stats`), shown on `/stats`. |
+| `faucet/` | Testnet faucet, a Cloudflare Worker at faucet.nuluvium.com: a little test ETH (only for a wallet with almost none) and 100 test USDG, once a day per wallet. |
 | `sdk/` | `@nuluvium/sdk` in TypeScript: keys, notes rebuilt from the chain, proofs, planning, routing, ragequit and sells. |
 | `mcp/` | MCP server for AI agents (stdio), runs on the agent's machine. |
 | `web/` | Site, docs and web app: Next.js on Cloudflare Workers (OpenNext). |
@@ -62,7 +63,7 @@ cd nuluvium
 Everything at once (lint, every typecheck and test suite; CI runs the same):
 
 ```bash
-npm ci && for p in contracts sdk mcp relayer asp stats web; do (cd $p && npm ci); done
+npm ci && for p in contracts sdk mcp relayer asp stats faucet web; do (cd $p && npm ci); done
 npm run check
 ```
 

@@ -9,7 +9,7 @@ test tokens). Last checked 2026-11-18 from a fresh clone.
 ```sh
 git clone --recurse-submodules https://github.com/nuluviumhq/nuluvium.git && cd nuluvium
 npm ci                                   # root: the linter
-for p in contracts sdk mcp relayer asp stats web; do (cd $p && npm ci); done
+for p in contracts sdk mcp relayer asp stats faucet web; do (cd $p && npm ci); done
 npm run check                            # lint + every typecheck and test suite
 npm run check -- --build                 # also the web production build
 ```
@@ -72,6 +72,7 @@ Testnet. All are single keys today; before mainnet the owner roles move to a Saf
 | Deployer `0xbdED…170b` (plain wallet) | Router owner; Privacy Pools Entrypoint `OWNER_ROLE` | Allow or remove stock tokens on the Router; pause Router swaps; upgrade the Entrypoint (UUPS proxy); wind down the pool (stops new deposits); change the postman; withdraw Entrypoint fees (vetting fee is 0) | Move anyone's deposit or tokens; change a signed order; stop `ragequit` (on the pool contract, not upgradeable); spend a note without its secrets |
 | Postman `0xD40C…3E32` (ASP Worker secret) | Entrypoint `ASP_POSTMAN` | Post approved-set roots: approve, refuse, or drop a deposit from the set | Spend or move funds. A deposit left out of the set cannot be traded privately, but can still be taken back |
 | Relayer `0x7a7A…c72F` (relayer Worker secret) | Sends Router transactions, receives the fee | Refuse or delay pieces and sells (censorship, downtime) | Change an order, raise the fee above the signed cap, or see more than the piece it sends. There is one relayer today; a second one is planned |
+| Faucet `0x03E4…c114` (faucet Worker secret) | Sends test ETH and mints test USDG (the mock token's mint is open to anyone) | Send a little testnet ETH and mint test USDG to wallets that ask, within daily limits | Touch the pool, the Router, notes or anything on mainnet; it holds only a little testnet ETH |
 | Web app (Cloudflare Worker) | Serves the app and the RPC proxy | Ship code that runs in users' browsers (as any web app can) | Read keys it never receives; the app works the same from a local build |
 
 If every key above turned hostile, a depositor still gets their deposit back with `ragequit`, and

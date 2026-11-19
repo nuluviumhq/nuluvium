@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { formatUsdg, parseUsdg, readWalletFunds, type ShieldedNote } from "@/lib/chain";
+import { requestTestFunds } from "@/lib/faucet";
 import { ragequitDeposit } from "@/lib/exits";
 import { STATUS_CLASS, STATUS_LABEL, marble } from "@/lib/format";
 import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
@@ -15,12 +16,11 @@ import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { DEPOSIT_CAP, friendlyError, useSession } from "./session";
 
 const TILE_COUNT = 45;
-const TEST_USDG = 100_000_000n; // 100 tUSDG per click
 const APPROVAL_LABEL = { approved: "Approved", waiting: "Waiting for approval", rejected: "Not approved" } as const;
 const APPROVAL_CLASS = { approved: "done", waiting: "scheduled", rejected: "expired" } as const;
 
 export function Overview() {
-  const { session, openLogin, orders, balance, refreshBalance, getTestUsdg, deposit, toast } = useSession();
+  const { session, openLogin, orders, balance, refreshBalance, deposit, toast } = useSession();
   const loggedIn = Boolean(session);
   const pieces = orders.flatMap((order) => order.pieces);
   const sent = pieces.filter((piece) => piece.status === "done").length;
@@ -78,7 +78,7 @@ export function Overview() {
     event.preventDefault();
     if (!amount) return toast("Enter an amount above zero.");
     if (amount > DEPOSIT_CAP) return toast("Deposits are capped at 1,000 tUSDG until the audit.");
-    if (funds && amount > funds.usdg) return toast("Your wallet holds less tUSDG than that. Get test USDG first.");
+    if (funds && amount > funds.usdg) return toast("Your wallet holds less tUSDG than that. Use Get test funds first.");
     void run("Depositing… confirm in your wallet (approve, then deposit).", () => deposit(amount), (tx) => `Deposited. It can be used once approved, usually within a minute. ${explorerTx(tx)}`);
   };
 
@@ -187,20 +187,32 @@ export function Overview() {
               </span>
             </div>
             <div>
-              <span className="name"><span className="n">03</span>Test tokens</span>
+              <span className="name"><span className="n">03</span>Test funds</span>
               <button
                 className="text-link mono"
                 type="button"
                 disabled={Boolean(working)}
-                onClick={() => run("Getting test USDG… confirm in your wallet.", () => getTestUsdg(TEST_USDG), (tx) => `100 test USDG are on the way to your wallet. ${explorerTx(tx)}`)}
+                onClick={() => {
+                  if (!session) return;
+                  let gotEth = false;
+                  void run(
+                    "Sending test funds to your wallet…",
+                    async () => {
+                      const drip = await requestTestFunds(session.address);
+                      gotEth = drip.eth !== "0";
+                      return drip.usdgTx;
+                    },
+                    (tx) => `${gotEth ? "100 test USDG and a little test ETH for gas are" : "100 test USDG are"} in your wallet. ${explorerTx(tx)}`,
+                  );
+                }}
               >
-                Get 100 test USDG
+                Get test funds
               </button>
             </div>
             <button className="button full" type="submit" disabled={Boolean(working)}>{working ?? "Deposit"}</button>
           </form>
           {funds && funds.eth === 0n ? (
-            <p className="fine">Your wallet needs a little testnet ETH for gas: faucet.testnet.chain.robinhood.com.</p>
+            <p className="fine">Your wallet needs a little testnet ETH for gas. Get test funds sends some with the test USDG, once a day.</p>
           ) : null}
           <div className="scroll-x">
             <table className="rows narrow">

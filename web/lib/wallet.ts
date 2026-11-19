@@ -5,7 +5,7 @@
 // (lib/deviceKeys.ts says why). Transactions the person sends go through the same provider.
 
 import type { UserKeys } from "@nuluvium/sdk";
-import { createWalletClient, custom, parseAbi, type WalletClient } from "viem";
+import { createWalletClient, custom, type WalletClient } from "viem";
 import { browserConfig, sdk } from "./chain";
 import { EXPLORER } from "./contracts";
 
@@ -76,7 +76,6 @@ export const shortAddress = (address: string) => `${address.slice(0, 6)}…${add
 
 /* ------------------------------------------------------------------ transactions (testnet) */
 
-const mintAbi = parseAbi(["function mint(address to, uint256 amount)"]);
 
 /**
  * Makes sure the wallet is on Robinhood Chain testnet. If the wallet does not know the chain, it is
@@ -109,14 +108,6 @@ export async function ensureTestnet(): Promise<void> {
 export async function walletClient(address: `0x${string}`): Promise<WalletClient> {
   const { chainFor } = await sdk();
   return createWalletClient({ account: address, chain: chainFor(await browserConfig()), transport: custom(provider()) });
-}
-
-/** Mints test USDG to the wallet (testnet mock token; anyone may mint up to 1,000,000 per call). */
-export async function mintTestUsdg(address: `0x${string}`, amount: bigint): Promise<`0x${string}`> {
-  await ensureTestnet();
-  const config = await browserConfig();
-  const wallet = await walletClient(address);
-  return wallet.writeContract({ account: address, chain: wallet.chain, address: config.usdg, abi: mintAbi, functionName: "mint", args: [address, amount] });
 }
 
 /** Deposits tUSDG from the wallet into the shielded pool under the person's next note. */

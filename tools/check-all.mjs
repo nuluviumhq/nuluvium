@@ -17,6 +17,7 @@ const steps = [
   ["relayer: tests", "relayer", "npm test"],
   ["asp: tests", "asp", "npm test"],
   ["stats: tests", "stats", "npm test"],
+  ["faucet: tests", "faucet", "npm test"],
   ["web: typecheck", "web", "npm run typecheck"],
   ["web: tests", "web", "npm test"],
 ];

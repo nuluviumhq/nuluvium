@@ -24,10 +24,10 @@ export default function Page() {
         <p>Either way, your keys are made in your browser and never sent to a server.</p>
       </DocSection>
       <DocSection n={3} title="Add the testnet">
-        <p>The app asks your wallet to add Robinhood Chain Testnet (chain 46630) and to switch to it. The network it adds reads the chain through Nuluvium&#39;s own RPC address, so it works on networks that block robinhood.com. With an email login the wallet is already on the testnet. Its address is in the app&#39;s sidebar: send it a little testnet ETH from the faucet for gas.</p>
+        <p>The app asks your wallet to add Robinhood Chain Testnet (chain 46630) and to switch to it. The network it adds reads the chain through Nuluvium&#39;s own RPC address, so it works on networks that block robinhood.com. With an email login the wallet is already on the testnet.</p>
       </DocSection>
-      <DocSection n={4} title="Get test USDG">
-        <p>On the Overview, choose Get 100 test USDG. Your wallet sends one transaction that mints 100 tUSDG, a mock of USDG for the testnet, to your wallet.</p>
+      <DocSection n={4} title="Get test funds">
+        <p>On the Overview, choose Get test funds. The Nuluvium faucet sends 100 tUSDG, a mock of USDG for the testnet, to your wallet, plus a little testnet ETH for gas when the wallet has almost none. You sign nothing and pay nothing. It works once a day per wallet; more ETH is at the official faucet, faucet.testnet.chain.robinhood.com.</p>
       </DocSection>
       <DocSection n={5} title="Deposit">
         <p>Enter an amount, up to 1,000 tUSDG per deposit, and choose Deposit. Your wallet asks for two transactions: an approval for the pool to take the tUSDG, then the deposit itself.</p>

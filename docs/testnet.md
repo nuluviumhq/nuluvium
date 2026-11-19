@@ -286,3 +286,17 @@ Not checked: the 451 page from a blocked country (needs a request from one).
   [sold 0.0083 MSTK](https://explorer.testnet.chain.robinhood.com/tx/0xc962221e494c9058aca60fe060bd77d07664ad9b0f3978009ea18aa880cb5f01)
   on fresh address 0xD445…5D00: +1.39 tUSDG (sale 1.49 minus the 0.10 fee), 0 ETH on the address.
 
+## Faucet (2026-11-19)
+
+`faucet/`, Worker at https://faucet.nuluvium.com, key `0x03E43b3Ae6f59C9A87738F546c78b02632Ffc114`
+(funded with 0.001 test ETH from the deployer, about 50 drips). `POST /drip {address}` sends 0.00002
+ETH when the wallet holds less than half that (an approve plus a deposit cost about 0.000004 ETH)
+and mints 100 tUSDG, so a new wallet can deposit without any other faucet. Limits: once per wallet
+per day, 3 per visitor per day (salted IP hash, stored apart from the wallet), 300 per day, a
+0.00005 ETH reserve, Cloudflare burst limit 3 a minute; other websites' Origins refused, blocked
+countries refused (same list as the app). Logs off. Checked live: a new wallet got
+[0.00002 ETH](https://explorer.testnet.chain.robinhood.com/tx/0x95784d87abc6c479f0e5906ace264707ab856a9627019f18968fcd26f4610932)
+and [100 tUSDG](https://explorer.testnet.chain.robinhood.com/tx/0x69e0f45eaa33c656f91a92084400076a0a767a6433876dcb6feb2f792f28d067);
+a second request for it got 429; another Origin 403; a malformed address 400. The app's Overview
+has a Get test funds button in place of the old Get 100 test USDG (which needed gas of its own).
+

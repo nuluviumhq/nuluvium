@@ -1,0 +1,25 @@
+// Nuluvium testnet faucet. Secrets (not in this file): FAUCET_KEY, FAUCET_SALT, PRIVATE_RPC_URL.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "darkpool-faucet-testnet",
+  "main": "src/worker.js",
+  // Served at faucet.nuluvium.com only.
+  "routes": [{ "pattern": "faucet.nuluvium.com", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Off on purpose: requests carry wallet addresses and IPs; nothing is logged.
+  "observability": { "enabled": false },
+  "durable_objects": { "bindings": [{ "name": "FAUCET_QUEUE", "class_name": "FaucetQueue" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FaucetQueue"] }],
+  // Daily limits (wallet, salted visitor hash, total), each under its own key, expiring after a day.
+  "kv_namespaces": [{ "binding": "FAUCET", "id": "edc7086a9e8140149018f317c30b14ba" }],
+  // Burst limit per visitor, kept by Cloudflare (nothing stored): 3 requests a minute.
+  "ratelimits": [{ "name": "FAUCET_LIMITER", "namespace_id": "1102", "simple": { "limit": 3, "period": 60 } }],
+  "vars": {
+    "CHAIN_ID": "46630",
+    "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
+    "USDG": "0xd26d58F86cf82c702b558D6E7F159939E97F0Bfa"
+  }
+}
