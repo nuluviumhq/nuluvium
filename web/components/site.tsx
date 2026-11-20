@@ -2,6 +2,7 @@
 // Markup ported from prototype/*.html; styles in app/globals.css (prototype/styles.css).
 
 import Link from "next/link";
+import { ArrowIcon } from "@/components/icons";
 import type { CSSProperties } from "react";
 
 type Section = "agents" | "product" | "why" | "docs";
@@ -11,7 +12,7 @@ export function Banner() {
   return (
     <Link className="banner" href="/app">
       <span>Nuluvium runs on testnet with test tokens. Figures on this site are examples</span>
-      <span aria-hidden="true">→</span>
+      <ArrowIcon />
     </Link>
   );
 }
@@ -98,7 +99,7 @@ export function ClosingCards() {
             </g>
           </svg>
         </div>
-        <Link className="narrow" href="/app/trade" tabIndex={-1}>Try an order <span aria-hidden="true">→</span></Link>
+        <Link className="narrow" href="/app/trade" tabIndex={-1}>Try an order <ArrowIcon /></Link>
       </article>
       {/* biome-ignore lint/a11y/noNoninteractiveTabindex: as above */}
       <article className="card" id="agents" tabIndex={0}>
@@ -117,7 +118,7 @@ export function ClosingCards() {
             )}
           </div>
         </div>
-        <Link className="narrow" href="/app/agents" tabIndex={-1}>Connect an agent <span aria-hidden="true">→</span></Link>
+        <Link className="narrow" href="/app/agents" tabIndex={-1}>Connect an agent <ArrowIcon /></Link>
       </article>
     </section>
   );

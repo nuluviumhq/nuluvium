@@ -7,6 +7,7 @@
 // all shown in the brand's green duotone; the colour original appears through a dot mask on hover.
 import Link from "next/link";
 import { AgentPrompt, Loupe, OrderSelector, PillarCard, ScrollStage } from "@/components/homeInteractive";
+import { ArrowIcon } from "@/components/icons";
 import { LiveFigures } from "@/components/LiveFigures";
 
 const REPO = "https://github.com/nuluviumhq/nuluvium";
@@ -29,7 +30,10 @@ const TRACKERS = [
   { text: "3 wallets copy every trade", at: ["52%", "80%"], to: [72, 84] },
 ] as const;
 
-/** Crowd fragments (crops of the paintings): resting spot around the headline and where they fly in from. */
+/**
+ * Crowd fragments (crops of the paintings): where they rest around the headline and where they fly in
+ * from. As the scene scrolls on they gather in tight around the headline (stylesheet, --c).
+ */
 const FRAGMENTS: Array<{ src: string; x: string; y: string; w: string; dx: string; dy: string; you?: boolean }> = [
   { src: "/art/frag-1.webp", x: "6%", y: "14%", w: "13rem", dx: "-15vw", dy: "-10vh" },
   { src: "/art/frag-3.webp", x: "40%", y: "2%", w: "10rem", dx: "0vw", dy: "-22vh" },
@@ -66,7 +70,7 @@ export function HomeSections() {
             <p className="mono">The problem</p>
             <h2 className="statement-title">Every hair<br />is visible.</h2>
             <p className="screen-lead">Every trade on Robinhood Chain is public and tied to the wallet that made it. Copiers repeat it. Trackers alert on it. Anyone can read an agent&#39;s rules from it.</p>
-            <Link className="text-link mono-link" href="/why">Why it matters →</Link>
+            <Link className="text-link mono-link" href="/why">Why it matters<ArrowIcon /></Link>
           </div>
           <Loupe base="/art/hare-duo.webp" color="/art/hare.webp" alt="Albrecht Duerer's Young Hare, every hair painted one by one" caption="Albrecht Dürer, Young Hare, 1502 · labels are a sample · move over it">
             <svg className="tracker-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -121,7 +125,7 @@ export function HomeSections() {
               <span
                 key={fragment.src}
                 className={`fragment${fragment.you ? " you" : ""}`}
-                style={{ ["--x" as string]: fragment.x, ["--y" as string]: fragment.y, ["--w" as string]: fragment.w, ["--dx" as string]: fragment.dx, ["--dy" as string]: fragment.dy }}
+                style={{ ["--x" as string]: fragment.x, ["--y" as string]: fragment.y, ["--xn" as string]: Number.parseFloat(fragment.x), ["--yn" as string]: Number.parseFloat(fragment.y), ["--w" as string]: fragment.w, ["--dx" as string]: fragment.dx, ["--dy" as string]: fragment.dy }}
               >
                 <img src={fragment.src} alt="" loading="lazy" />
                 {fragment.you ? <span className="you-tag">You</span> : null}
@@ -149,7 +153,7 @@ export function HomeSections() {
             <h2 className="statement-title">Your agent&#39;s strategy, kept to itself.</h2>
             <p className="screen-lead">One MCP server on the agent&#39;s own machine, listed on the official MCP Registry as com.nuluvium/mcp. It holds its own keys; Nuluvium never sees them.</p>
             <AgentPrompt command="npx -y @nuluvium/mcp" examples={AGENT_EXAMPLES} />
-            <Link className="text-link mono-link" href="/for-agents">Set up an agent →</Link>
+            <Link className="text-link mono-link" href="/for-agents">Set up an agent<ArrowIcon /></Link>
           </div>
         </div>
       </section>
@@ -167,7 +171,7 @@ export function HomeSections() {
             <article style={{ ["--i" as string]: 1 }}><span className="mono">Not private</span><p>From Robinhood. And each piece is still a public swap.</p></article>
             <article style={{ ["--i" as string]: 2 }}><span className="mono">Testnet</span><p>Not audited yet. Deposits capped at 1,000 USDG each, 25,000 in total.</p></article>
           </div>
-          <Link className="text-link mono-link light" href="/docs/security">Read the security notes →</Link>
+          <Link className="text-link mono-link light" href="/docs/security">Read the security notes<ArrowIcon /></Link>
         </div>
       </section>
 
@@ -190,7 +194,7 @@ export function HomeSections() {
                   <>
                     <span className="proof-title">{proof.title}</span>
                     <span className="proof-text">{proof.text}</span>
-                    <span className="proof-link">{proof.link}<span className="arrow" aria-hidden="true">→</span></span>
+                    <span className="proof-link">{proof.link}<ArrowIcon /></span>
                   </>
                 );
                 return proof.external ? (
@@ -218,7 +222,7 @@ export function HomeSections() {
             </ol>
             <div className="start-actions">
               <Link className="button light" href="/app">Go to app</Link>
-              <Link className="text-link mono-link light" href="/docs/faq">Questions first? Read the FAQ →</Link>
+              <Link className="text-link mono-link light" href="/docs/faq">Questions first? Read the FAQ<ArrowIcon /></Link>
             </div>
           </div>
         </div>

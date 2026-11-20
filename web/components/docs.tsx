@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
+import { ArrowIcon } from "@/components/icons";
 import { SiteHeader } from "@/components/site";
 
 export const DOC_PAGES = [
@@ -50,8 +51,8 @@ export function DocsPage({ slug, lead, children }: { slug: DocSlug; lead: string
           <p className="notice">Nuluvium runs on Robinhood Chain testnet with test tokens. Nothing here is investment advice.</p>
           {children}
           <p className="doc-links">
-            {previous ? <Link className="text-link" href={href(previous.slug)}>← {previous.title}</Link> : <Link className="text-link" href="/">Back to the site</Link>}
-            {next ? <Link className="text-link next" href={href(next.slug)}>{next.title} →</Link> : null}
+            {previous ? <Link className="text-link" href={href(previous.slug)}><ArrowIcon direction="left" />{previous.title}</Link> : <Link className="text-link" href="/">Back to the site</Link>}
+            {next ? <Link className="text-link next" href={href(next.slug)}>{next.title}<ArrowIcon /></Link> : null}
           </p>
         </main>
       </div>

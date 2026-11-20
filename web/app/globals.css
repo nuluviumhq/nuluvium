@@ -1464,3 +1464,33 @@ html[data-reveal-ready] [data-reveal]:not(.revealed) .tracker-dot { opacity: 0; 
   .fragment.you::after, .you-tag { display: none; }
   .frieze { margin-top: 4rem; height: 8rem; }
 }
+
+/* Crowd scene, phase 2: after flying in (--t, first half of the scroll), the fragments gather in
+   close around the headline (--c, second half) and shrink a little, so the crowd closes around the
+   words as the next screen arrives. --xn/--yn are the resting spot in % of the stage. */
+.crowd-scene { height: 300svh; }
+.fragment {
+  --t: clamp(0, calc(var(--p) * 2.2), 1);
+  --c: clamp(0, calc((var(--p) - 0.45) * 2), 1);
+  transform:
+    translate(
+      calc((1 - var(--t)) * var(--dx) + var(--c) * 0.55 * (50vw - var(--xn) * 1vw - var(--w) / 2)),
+      calc((1 - var(--t)) * var(--dy) + var(--c) * 0.5 * (50svh - var(--yn) * 1svh - var(--w) / 2))
+    )
+    scale(calc((0.85 + var(--t) * 0.15) * (1 - var(--c) * 0.22)));
+  transition: none;
+}
+/* "You" is lost as the crowd closes in. */
+.fragment.you::after, .you-tag { opacity: clamp(0, calc(1 - var(--c) * 1.6), 1); }
+@media (max-width: 900px) {
+  .crowd-scene { height: auto; }
+  .fragment { transform: none; }
+}
+
+/* Arrow icon (components/icons.tsx) used instead of text arrows; nudges forward on hover. */
+.icon-arrow { display: inline-block; flex: none; width: 1em; height: 1em; margin-left: 0.4em; vertical-align: -0.15em; transition: transform 0.35s var(--ease-link); }
+.icon-arrow.left { margin: 0 0.4em 0 0; transform: rotate(180deg); }
+a:hover > .icon-arrow, a:focus-visible > .icon-arrow, .proof-card:hover .icon-arrow, .proof-card:focus-visible .icon-arrow { transform: translateX(0.25em); }
+a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rotate(180deg) translateX(0.25em); }
+.proof-link .icon-arrow { margin-left: 0; }
+.banner .icon-arrow { margin-left: 0; }
