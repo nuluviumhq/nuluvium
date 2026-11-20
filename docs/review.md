@@ -84,6 +84,5 @@ tokens already on a fresh address stay under that address's key.
 - One relayer: it can censor or go down. Mainnet: a second relayer.
 - Minimum output for buys uses the mock's fixed price on testnet; mainnet needs a Uniswap quote.
 - The web app has no UI tests; its tests cover pure logic (country check, chain reads, RPC policy).
-- The npm package `@nuluvium/mcp` is built and tested but not published yet.
 - No independent audit yet; deposits stay capped until there is one.
 - The public history starts on 2026-11-16 with one commit: earlier work was in a private repository.
