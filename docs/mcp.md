@@ -78,8 +78,23 @@ From a clone of this repository, the root `.mcp.json` runs the server from sourc
   Checked from the registry with an empty cache: `npx -y @nuluvium/mcp --prepare` in 60 s (install +
   circuit files); then the server over stdio via `npx -y @nuluvium/mcp`: connected in 52 s cold, 14 s
   warm, 6 tools, `get_balance` read the test wallet.
-- Next version: bump `version` in `mcp/package.json`, then `npm publish --access public` from `mcp/`
-  (the account owner runs it: npm asks for 2FA).
+- 0.1.1 (2026-11-20): same code, adds `mcpName` for the official MCP Registry.
+- Next version: bump `version` in `mcp/package.json` **and** both versions in `mcp/server.json`, then
+  `npm publish --access public` from `mcp/` (the account owner runs it: npm asks for 2FA, and must be
+  logged in as `nuluvium`: a logged-out publish fails with a misleading 404), then publish to the
+  registry (below).
+
+## Official MCP Registry (`com.nuluvium/mcp`, live since 2026-11-20)
+- Entry: `mcp/server.json`; check with
+  `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=com.nuluvium/mcp"`.
+- Ownership of the `com.nuluvium/*` namespace is proven by an apex TXT record on nuluvium.com
+  (`v=MCPv1; k=ed25519; p=...`). Keep it. The matching private key is kept outside the repo by
+  the account owner; without it a new key and TXT record are needed.
+- Publish a new version from `mcp/` after the npm publish (the registry checks the npm package's
+  `mcpName`): `mcp-publisher validate`, then `mcp-publisher login dns --domain nuluvium.com
+  --private-key <hex>`, then `mcp-publisher publish`. mcp-publisher 1.8.9 has no `--dry-run`:
+  `validate` is the dry run. Published versions cannot be deleted, only marked deprecated
+  (`mcp-publisher status`).
 
 ## Tests
 - `cd mcp && npm test`: order status, store persistence, deposit rules, note approval and choice, circuit file download.

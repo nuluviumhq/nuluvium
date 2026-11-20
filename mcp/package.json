@@ -1,6 +1,7 @@
 {
   "name": "@nuluvium/mcp",
-  "version": "0.1.0",
+  "mcpName": "com.nuluvium/mcp",
+  "version": "0.1.1",
   "type": "module",
   "description": "Nuluvium MCP server: lets an AI agent trade Robinhood Chain stock tokens privately, from its own machine",
   "license": "Apache-2.0",

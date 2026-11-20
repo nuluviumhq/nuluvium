@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.nuluvium/mcp",
+  "title": "Nuluvium",
+  "description": "Trade Robinhood Chain stock tokens from an AI agent without the trades tracing back to it",
+  "websiteUrl": "https://nuluvium.com",
+  "repository": {
+    "url": "https://github.com/nuluviumhq/nuluvium",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@nuluvium/mcp",
+      "version": "0.1.1",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "NULUVIUM_MNEMONIC",
+          "description": "The agent's secret: twelve words only this machine knows. Use a new testnet mnemonic",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "NULUVIUM_NETWORK",
+          "description": "Network to use",
+          "default": "robinhood-testnet"
+        },
+        {
+          "name": "NULUVIUM_RPC_URL",
+          "description": "Optional own RPC URL"
+        }
+      ]
+    }
+  ]
+}
