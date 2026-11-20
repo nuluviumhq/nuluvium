@@ -208,8 +208,8 @@ export function HomeSections() {
         </div>
       </section>
 
-      {/* 8. Start, then a frieze of couriers leading into the footer. */}
-      <section className="screen tone-paper last" data-reveal>
+      {/* 8. Start. */}
+      <section className="screen tone-paper" data-reveal>
         <div className="wrap">
           <div className="start-panel">
             <p className="mono">Start on testnet</p>
@@ -226,9 +226,6 @@ export function HomeSections() {
             </div>
           </div>
         </div>
-        <figure className="frieze" aria-hidden="true">
-          <img src="/art/frieze.webp" alt="" loading="lazy" />
-        </figure>
       </section>
     </div>
   );

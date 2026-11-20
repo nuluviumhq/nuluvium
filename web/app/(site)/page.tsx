@@ -4,6 +4,7 @@ import { LandingScene, StatementWords } from "@/components/LandingScene";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
 import { SiteHeader, Banner, SiteFooter } from "@/components/site";
 import { HomeSections } from "@/components/home";
+import { NvidiaMark, SpyBadge, TeslaMark } from "@/components/stockMarks";
 import { INTRO_SCRIPT, IntroCurtain } from "@/components/IntroCurtain";
 
 export const metadata: Metadata = {
@@ -51,11 +52,22 @@ export default function Page() {
           </section>
 
           <div className="wrap">
-            <section className="markets" aria-label="Markets at launch">
-              <p className="mono">Markets at launch</p>
-              <p className="name">NVDA</p>
-              <p className="name">TSLA</p>
-              <p className="name">SPY</p>
+            <section className="markets" aria-label="Planned for mainnet">
+              <p className="mono">Planned for mainnet</p>
+              {/* One-colour marks identify the underlying stocks only (components/stockMarks.tsx). */}
+              <div className="market">
+                <NvidiaMark />
+                <p className="name">NVDA</p>
+              </div>
+              <div className="market">
+                <TeslaMark />
+                <p className="name">TSLA</p>
+              </div>
+              <div className="market">
+                <SpyBadge />
+                <p className="name">SPY</p>
+              </div>
+              <p className="markets-note">On testnet today: MSTK, a mock stock token. Each planned market has a USDG pool on Uniswap v3 that the Router can use (checked on chain, 20 Nov 2026). Marks identify the underlying stocks; trademarks belong to their owners and Nuluvium is not affiliated with them.</p>
             </section>
           </div>
 

@@ -1404,11 +1404,10 @@ html[data-reveal-ready] [data-reveal].revealed .start-line li { border-top-color
   .dots-reveal img.color, .pillar > img { transition: none; }
 }
 
-/* ---------- landing: tone bands, trackers, "you" in the crowd, frieze ----------
+/* ---------- landing: tone bands, trackers, "you" in the crowd ----------
    Each screen is a full-width band; tones alternate so every screen reads as a new chapter. */
 .home-more { padding-bottom: 0; }
 .screen { padding: 8rem 0; }
-.screen.last { padding-bottom: 0; }
 .tone-white { background: var(--white); }
 /* Cream paper with a fine grain (SVG noise, no image file). */
 .tone-paper {
@@ -1449,9 +1448,6 @@ html[data-reveal-ready] [data-reveal]:not(.revealed) .tracker-dot { opacity: 0; 
 /* Plainly follows the green band directly. */
 .plainly { margin-top: 0; }
 
-/* Frieze of couriers into the footer. */
-.frieze { margin: 7rem 0 0; height: 15rem; overflow: hidden; }
-.frieze img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; -webkit-mask-image: linear-gradient(180deg, transparent, #000 35%, #000 65%, transparent); mask-image: linear-gradient(180deg, transparent, #000 35%, #000 65%, transparent); }
 
 @media (max-width: 900px) {
   .screen { padding: 5rem 0; }
@@ -1462,7 +1458,6 @@ html[data-reveal-ready] [data-reveal]:not(.revealed) .tracker-dot { opacity: 0; 
   .fragments { position: relative; inset: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; padding: 0 1rem; }
   .fragment { display: block; position: relative; left: auto; top: auto; width: 22%; transform: none; opacity: 1; }
   .fragment.you::after, .you-tag { display: none; }
-  .frieze { margin-top: 4rem; height: 8rem; }
 }
 
 /* Crowd scene, phase 2: after flying in (--t, first half of the scroll), the fragments gather in
@@ -1494,3 +1489,17 @@ a:hover > .icon-arrow, a:focus-visible > .icon-arrow, .proof-card:hover .icon-ar
 a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rotate(180deg) translateX(0.25em); }
 .proof-link .icon-arrow { margin-left: 0; }
 .banner .icon-arrow { margin-left: 0; }
+
+/* Markets row: one-colour marks of the underlying stocks (components/stockMarks.tsx). */
+.market { justify-self: center; display: flex; align-items: center; gap: 1rem; }
+.stock-mark { flex: none; width: auto; height: 2.6rem; color: var(--green); transition: transform 0.5s var(--ease-link), opacity 0.5s var(--ease-link); }
+.market:hover .stock-mark { transform: translateY(-0.2rem) scale(1.05); }
+.markets-note { grid-column: 1 / -1; padding-top: 2.25rem; font-size: 0.75rem; line-height: 1.4; color: var(--green-70); }
+@media (max-width: 900px) {
+  .markets { column-gap: 1rem; }
+  .market { justify-self: start; gap: 0.45rem; }
+  .market .name { font-size: 1.375rem; }
+  .stock-mark { height: 1.6rem; }
+  .markets-note { padding-top: 0.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { .stock-mark { transition: none; } }
