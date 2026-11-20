@@ -1494,12 +1494,44 @@ a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rota
 .market { justify-self: center; display: flex; align-items: center; gap: 1rem; }
 .stock-mark { flex: none; width: auto; height: 2.6rem; color: var(--green); transition: transform 0.5s var(--ease-link), opacity 0.5s var(--ease-link); }
 .market:hover .stock-mark { transform: translateY(-0.2rem) scale(1.05); }
-.markets-note { grid-column: 1 / -1; padding-top: 2.25rem; font-size: 0.75rem; line-height: 1.4; color: var(--green-70); }
 @media (max-width: 900px) {
   .markets { column-gap: 1rem; }
   .market { justify-self: start; gap: 0.45rem; }
   .market .name { font-size: 1.375rem; }
   .stock-mark { height: 1.6rem; }
-  .markets-note { padding-top: 0.5rem; }
 }
 @media (prefers-reduced-motion: reduce) { .stock-mark { transition: none; } }
+
+/* Page curtain (lib/pageCurtain.ts): four green columns drop over the site, the app opens under
+   them, then they lift. Same columns as the landing's opening sequence. */
+.page-curtain { position: fixed; inset: 0; z-index: 1000; display: grid; grid-template-columns: repeat(4, 1fr); pointer-events: none; }
+.page-curtain i { background: var(--green); transform: translateY(-100%); transition: transform 0.6s var(--ease); }
+.page-curtain i + i { box-shadow: inset 1px 0 rgba(255, 255, 255, 0.08); }
+.page-curtain i:nth-child(2) { transition-delay: 0.05s; }
+.page-curtain i:nth-child(3) { transition-delay: 0.1s; }
+.page-curtain i:nth-child(4) { transition-delay: 0.15s; }
+.page-curtain.covering i { transform: none; }
+.page-curtain.covering.lifting i { transform: translateY(100%); transition-duration: 0.75s; }
+
+/* App sidebar account: one card (short address + login type) opening the Account page, and a
+   log-out icon button. Copy, explorer and the recovery phrase live on the Account page. */
+.account-row { display: flex; align-items: stretch; gap: 0.4rem; }
+.account-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.7rem; border-radius: 0.4rem; background: rgba(255, 255, 255, 0.08); transition: background-color 0.3s var(--ease-link); }
+.account-chip:hover, .account-chip:focus-visible { background: rgba(255, 255, 255, 0.15); }
+.account-dot { flex: none; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #7fd3a4; box-shadow: 0 0 0 3px rgba(127, 211, 164, 0.2); }
+.account-text { flex: 1; min-width: 0; display: grid; gap: 0.15rem; }
+.account-text .addr { font-family: var(--mono); font-size: max(0.8125rem, 12px); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-text .mono { font-size: max(0.6875rem, 11px); }
+.account-chip .icon-chevron { flex: none; width: 1rem; height: 1rem; color: rgba(255, 255, 255, 0.6); transition: transform 0.3s var(--ease-link); }
+.account-chip:hover .icon-chevron { transform: translateX(0.15rem); }
+.logout { display: inline-flex; align-items: center; gap: 0.45rem; font-family: var(--mono); font-size: max(0.75rem, 11px); letter-spacing: 0.04em; text-transform: uppercase; }
+.logout svg { width: 1rem; height: 1rem; }
+.logout.icon-only { flex: none; justify-content: center; width: 2.6rem; border-radius: 0.4rem; background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.8); transition: background-color 0.3s var(--ease-link), color 0.3s var(--ease-link); }
+.logout.icon-only:hover, .logout.icon-only:focus-visible { background: rgba(255, 255, 255, 0.15); color: var(--white); }
+/* The same card on the light phone menu. */
+.account-menu .account-chip { background: var(--cream); }
+.account-menu .account-chip:hover { background: var(--green-10); }
+.account-menu .account-text .addr { color: var(--ink); }
+.account-menu .account-chip .icon-chevron { color: var(--green-70); }
+.account-menu .logout { justify-self: start; color: var(--green); }
+@media (prefers-reduced-motion: reduce) { .page-curtain { display: none; } }

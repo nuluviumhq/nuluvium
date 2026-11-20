@@ -67,7 +67,6 @@ export default function Page() {
                 <SpyBadge />
                 <p className="name">SPY</p>
               </div>
-              <p className="markets-note">On testnet today: MSTK, a mock stock token. Each planned market has a USDG pool on Uniswap v3 that the Router can use (checked on chain, 20 Nov 2026). Marks identify the underlying stocks; trademarks belong to their owners and Nuluvium is not affiliated with them.</p>
             </section>
           </div>
 

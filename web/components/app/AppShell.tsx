@@ -6,8 +6,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { explorerAddress } from "@/lib/wallet";
-import { RecoveryPhraseButton } from "./RecoveryPhrase";
+import { useEffect } from "react";
+import { ChevronIcon, LogoutIcon } from "@/components/icons";
+import { liftCurtain } from "@/lib/pageCurtain";
 import { useSession } from "./session";
 
 const PAGES = [
@@ -21,26 +22,19 @@ const PAGES = [
 // Phones: five tabs fit; Account is reached from the account menu instead.
 const TABS = PAGES.filter((page) => page.id !== "account");
 
-/** The full login-wallet address, with Copy and a link to the explorer (sidebar and phone menu). */
-function FullAddress() {
-  const { session, toast } = useSession();
+/** The login, short: address and login type, opening the Account page (copy, explorer, recovery phrase live there). */
+function AccountChip({ onOpen }: { onOpen?: (event: React.MouseEvent<HTMLAnchorElement>) => void }) {
+  const { session } = useSession();
   if (!session) return null;
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(session.address);
-      toast("Address copied.");
-    } catch {
-      toast("Could not copy. Select the address and copy it by hand.");
-    }
-  };
   return (
-    <>
-      <span className="addr addr-full">{session.address}</span>
-      <span className="addr-actions">
-        <button className="text-link mono" type="button" onClick={() => void copy()}>Copy</button>
-        <a className="text-link mono" href={explorerAddress(session.address)} target="_blank" rel="noreferrer">Explorer</a>
+    <Link className="account-chip" href="/app/account" onClick={onOpen}>
+      <span className="account-dot" aria-hidden="true" />
+      <span className="account-text">
+        <span className="addr">{session.wallet}</span>
+        <span className="mono soft">{session.kind === "email" ? "Email login" : "Wallet"}</span>
       </span>
-    </>
+      <ChevronIcon />
+    </Link>
   );
 }
 
@@ -48,6 +42,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const current = PAGES.find((page) => page.href === pathname) ?? PAGES[0];
   const { session, openLogin, logout } = useSession();
+
+  // Arriving from the site behind the page curtain: lift it once the app shell is on screen.
+  useEffect(() => {
+    liftCurtain();
+  }, []);
 
   return (
     <>
@@ -58,12 +57,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <details className="account-menu">
             <summary className="mono">{session.wallet}</summary>
             <div className="menu-panel">
-              <span className="mono soft">{session.kind === "email" ? "Email login · unlocked" : "Wallet · unlocked"}</span>
-              <FullAddress />
+              <AccountChip onOpen={(event) => event.currentTarget.closest("details")?.removeAttribute("open")} />
               <span className="mono soft">Testnet · test tokens only</span>
-              <Link className="text-link mono" href="/app/account" onClick={(event) => event.currentTarget.closest("details")?.removeAttribute("open")}>Account · backup</Link>
-              <RecoveryPhraseButton />
-              <button className="text-link mono" type="button" onClick={logout}>Log out</button>
+              <button className="logout" type="button" onClick={logout}><LogoutIcon />Log out</button>
             </div>
           </details>
         ) : (
@@ -84,12 +80,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="foot account">
             <span className="sample network">Testnet · test tokens</span>
             {session ? (
-              <>
-                <span className="mono soft">{session.kind === "email" ? "Email login · unlocked" : "Wallet · unlocked"}</span>
-                <FullAddress />
-                <RecoveryPhraseButton />
-                <button className="text-link mono" type="button" onClick={logout}>Log out</button>
-              </>
+              <div className="account-row">
+                <AccountChip />
+                <button className="logout icon-only" type="button" onClick={logout} aria-label="Log out" title="Log out"><LogoutIcon /></button>
+              </div>
             ) : (
               <>
                 <span className="mono soft">Not logged in</span>
