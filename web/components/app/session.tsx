@@ -337,7 +337,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const note = notes.sort((a, b) => (a.value < b.value ? -1 : 1))[0];
     if (!note) throw new Error("No approved deposit of yours covers this amount on its own. Deposit more, or wait for a deposit to be approved.");
 
-    const { planPieces } = await import("@nuluvium/sdk");
+    const { planPieces } = await sdk();
     const start = Math.floor(Date.now() / 1000) + START_DELAY_SECONDS;
     const minGapSeconds = Math.min(30, Math.floor(windowSeconds / Math.max(1, pieces - 1)));
     const plan = planPieces({ amount, pieces, windowSeconds, start, minPiece: MIN_PIECE, minGapSeconds });

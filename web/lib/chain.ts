@@ -3,7 +3,11 @@
 
 import type { NetworkConfig, UserKeys } from "@nuluvium/sdk";
 
-export const sdk = () => import("@nuluvium/sdk");
+// Browser only. Next replaces `typeof window` with "undefined" in server builds, so this branch and
+// the whole SDK (snarkjs, ethers, poseidon constants: ~2.6 MB) are dropped from the Worker bundle.
+// Every caller runs in effects or event handlers, never during server rendering.
+export const sdk = (): Promise<typeof import("@nuluvium/sdk")> =>
+  typeof window === "undefined" ? Promise.reject(new Error("The SDK runs in the browser only")) : import("@nuluvium/sdk");
 
 /** Testnet config with reads through /api/rpc (Alchemy behind it: 10,000 blocks per log query). */
 export async function browserConfig(): Promise<NetworkConfig> {
