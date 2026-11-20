@@ -1,4 +1,5 @@
-// Nuluvium ASP Worker, Robinhood Chain TESTNET. Secret (not in this file): POSTMAN_KEY.
+// Nuluvium ASP Worker, Robinhood Chain TESTNET. Secrets (not in this file): POSTMAN_KEY,
+// PRIVATE_RPC_URL, GITHUB_TOKEN (optional; fine-grained, approved-sets repo only, Contents read/write).
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "darkpool-asp-testnet",
@@ -30,6 +31,9 @@
     "PER_DEPOSIT_CAP": "1000000000",
     "TOTAL_CAP": "25000000000",
     // Our own denylist. Testnet: one demo depositor, listed on purpose to show a rejected deposit.
-    "DENYLIST": "0xA784757251fD24dF5ce44FF783Da3a661f1395D3"
+    "DENYLIST": "0xA784757251fD24dF5ce44FF783Da3a661f1395D3",
+    // Public archive of every posted set (src/publish.js commits there when GITHUB_TOKEN is set).
+    "GITHUB_REPO": "nuluviumhq/approved-sets",
+    "GITHUB_BRANCH": "main"
   }
 }

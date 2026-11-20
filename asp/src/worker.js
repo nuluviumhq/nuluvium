@@ -3,12 +3,14 @@
 //          document to KV under its CID and post the new root with Entrypoint.updateRoot.
 //   GET /            status (latest root, CID, counts)
 //   GET /sets/<cid>  the published set document, byte for byte what the CID hashes
+//   then:  commit each posted set to the public archive repo (src/publish.js), if GITHUB_TOKEN is set
 //
 // Fails closed: if the OFAC list or the issuer check cannot be read, nothing is posted.
 
-import { createPublicClient, createWalletClient, defineChain, http, parseAbi, parseAbiItem } from "viem";
+import { createPublicClient, createWalletClient, decodeEventLog, defineChain, http, parseAbi, parseAbiItem } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { rawCid } from "./cid.js";
+import { githubClient, publishPending, queueSet } from "./publish.js";
 import { REASONS, approvedRoot, screenDeposits } from "./screen.js";
 
 const depositedEvent = parseAbiItem(
@@ -18,6 +20,7 @@ const entrypointAbi = parseAbi([
   "function latestRoot() view returns (uint256)",
   "function updateRoot(uint256 root, string ipfsCID) returns (uint256)",
 ]);
+const rootUpdatedEvent = parseAbiItem("event RootUpdated(uint256 _root, string _ipfsCID, uint256 _timestamp)");
 const registryAbi = parseAbi(["function isBlocked(address account) view returns (bool)"]);
 
 // Alchemy allows at most 10,000 blocks per eth_getLogs. 30 chunks a run catch up 300,000 blocks
@@ -201,8 +204,40 @@ export async function runOnce(env, { dryRun = false } = {}) {
   if (receipt.status !== "success") throw new Error(`updateRoot reverted: ${hash}`);
 
   await env.ASP_SETS.put(LATEST_KEY, JSON.stringify({ cid, root: root.toString(), tx: hash, postedAt: document.createdAt }));
+  await queueSet(env.ASP_SETS, { cid, tx: hash });
   return { ...summary, posted: true, cid, tx: hash };
 }
+
+/** The root and CID the Entrypoint emitted in an updateRoot transaction (what export.mjs reads). */
+async function readRootUpdated(publicClient, env, tx) {
+  const receipt = await publicClient.getTransactionReceipt({ hash: tx });
+  if (receipt.status !== "success") throw new Error(`updateRoot ${tx} did not succeed`);
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== env.ENTRYPOINT.toLowerCase()) continue;
+    try {
+      const { args } = decodeEventLog({ abi: [rootUpdatedEvent], data: log.data, topics: log.topics });
+      return { root: args._root, cid: args._ipfsCID, timestamp: args._timestamp, block: receipt.blockNumber, tx };
+    } catch {
+      // another Entrypoint event in the same transaction
+    }
+  }
+  throw new Error(`no RootUpdated event in ${tx}`);
+}
+
+/** Commits posted sets to the public archive repo. Skipped when the GITHUB_TOKEN secret is not set. */
+export async function publishSets(env, { fetchImpl } = {}) {
+  if (!env.GITHUB_TOKEN) return { skipped: "no GITHUB_TOKEN" };
+  const publicClient = createPublicClient({ chain: chainFor(env), transport: http(rpcUrl(env), { timeout: 20_000, retryCount: 2 }) });
+  return publishPending({
+    kv: env.ASP_SETS,
+    github: githubClient({ token: env.GITHUB_TOKEN, repo: env.GITHUB_REPO, fetchImpl }),
+    branch: env.GITHUB_BRANCH,
+    readRootUpdated: (tx) => readRootUpdated(publicClient, env, tx),
+  });
+}
+
+// Never log error.message: viem puts the full RPC URL (with its key) in it.
+const describe = (error) => `${error.shortMessage ?? error.name}${error.details ? ` (${error.details})` : ""}`;
 
 // Public data, read by the web app from any origin.
 const CORS = { "access-control-allow-origin": "*" };
@@ -212,11 +247,20 @@ const json = (body, status = 200) =>
 export default {
   async scheduled(_event, env, ctx) {
     ctx.waitUntil(
-      runOnce(env).then(
-        (summary) => console.log(JSON.stringify(summary)),
-        // Never log error.message: viem puts the full RPC URL (with its key) in it.
-        (error) => console.error(`ASP run failed: ${error.shortMessage ?? error.name}${error.details ? ` (${error.details})` : ""}`),
-      ),
+      (async () => {
+        try {
+          console.log(JSON.stringify(await runOnce(env)));
+        } catch (error) {
+          console.error(`ASP run failed: ${describe(error)}`);
+        }
+        // Runs even when screening failed, so a set posted earlier is not held back.
+        try {
+          const result = await publishSets(env);
+          if (result.published?.length || result.failed?.length) console.log(`publish: ${JSON.stringify(result)}`);
+        } catch (error) {
+          console.error(`publish failed: ${describe(error)}`);
+        }
+      })(),
     );
   },
 

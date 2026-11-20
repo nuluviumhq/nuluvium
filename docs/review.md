@@ -24,7 +24,7 @@ on every push ([.github/workflows/ci.yml](../.github/workflows/ci.yml)).
 | sdk | typecheck, `npm test` | 17 pass |
 | mcp | typecheck, `npm test`, `npm pack --dry-run` | 13 pass |
 | relayer | `npm test` | 8 pass |
-| asp | `npm test` | 7 pass |
+| asp | `npm test` | 21 pass |
 | stats | `npm test` | 7 pass |
 | web | typecheck, `npm test`, `next build` | 10 pass (pure logic only: no UI tests), build passes |
 
