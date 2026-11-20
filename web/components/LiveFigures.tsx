@@ -1,9 +1,10 @@
 "use client";
 
-// Landing page strip of live testnet figures, read from the stats Worker (same source as /stats).
-// Totals only: the stats Worker never returns addresses.
+// Live testnet figures for the landing crowd scene, read from the stats Worker (same source as
+// /stats). Totals only: the stats Worker never returns addresses.
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CountUp } from "@/components/homeInteractive";
 
 const STATS_URL = "https://stats.nuluvium.com/stats";
 /** Same threshold as /stats: below this many approved deposits we say plainly that privacy is weak. */
@@ -11,11 +12,9 @@ const SMALL_CROWD = 50;
 
 interface Headline {
   updatedAt: number;
-  crowd: { approvedDeposits: number | null; approvedDepositors: number | null };
+  crowd: { deposits: number; approvedDeposits: number | null; approvedDepositors: number | null };
   headline: { shieldedUsdg: string; piecesRouted: number };
 }
-
-const whole = (value: number | null | undefined) => (value === null || value === undefined ? "–" : value.toLocaleString("en-US"));
 
 function ago(unix: number): string {
   const minutes = Math.max(0, Math.round((Date.now() / 1000 - unix) / 60));
@@ -38,36 +37,30 @@ export function LiveFigures() {
   }, []);
 
   const approved = stats?.crowd.approvedDeposits ?? null;
-  const shielded = stats ? Number(stats.headline.shieldedUsdg) : null;
-  const figures: Array<[string, string]> = [
-    ["Approved deposits", whole(approved)],
-    ["People behind them", whole(stats?.crowd.approvedDepositors)],
-    ["USDG in the shielded pool", whole(shielded)],
-    ["Pieces routed", whole(stats?.headline.piecesRouted)],
+  const figures: Array<[string, number | null]> = [
+    ["approved deposits", approved],
+    ["USDG shielded", stats ? Number(stats.headline.shieldedUsdg) : null],
+    ["pieces routed", stats?.headline.piecesRouted ?? null],
   ];
 
   return (
-    <section className="box live-figures" aria-busy={!stats && !failed}>
-      <div className="box-head">
-        <h2 className="title">The crowd, today</h2>
-        <span className="mono soft">{stats ? `Testnet · updated ${ago(stats.updatedAt)}` : failed ? "Testnet · figures unavailable" : "Testnet · loading"}</span>
-      </div>
-      <dl className="figures">
+    <div className="live-figures" aria-busy={!stats && !failed}>
+      <dl className="big-figures">
         {figures.map(([label, value]) => (
-          <div key={label} className={stats ? undefined : "loading"}>
+          <div key={label}>
+            <dd>{value === null ? "–" : <CountUp value={value} />}</dd>
             <dt>{label}</dt>
-            <dd>{value}</dd>
           </div>
         ))}
       </dl>
-      <div className="figures-foot">
-        <p>
-          {approved !== null && approved < SMALL_CROWD
-            ? `With ${approved} approved deposits the crowd is small, so privacy is weak: timing and amounts can still point a piece to its deposit. It grows with every user.`
-            : "Privacy grows with the crowd: the more deposits there are, the harder it is to point a piece to one of them."}
-        </p>
-        <Link className="button outline" href="/stats">All figures</Link>
-      </div>
-    </section>
+      <p className="live-note">
+        <span className="live-dot" aria-hidden="true" />
+        {stats ? `Testnet, updated ${ago(stats.updatedAt)}. ` : failed ? "Live figures are unavailable right now. " : "Reading the chain… "}
+        {approved !== null && approved < SMALL_CROWD
+          ? "The crowd is still small, so privacy is weak for now. It grows with every user."
+          : "The bigger the crowd, the harder it is to point a piece to its deposit."}{" "}
+        <Link className="text-link" href="/stats">All figures</Link>
+      </p>
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { LandingScene, StatementWords } from "@/components/LandingScene";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
-import { SiteHeader, Banner, ClosingCards, SiteFooter } from "@/components/site";
+import { SiteHeader, Banner, SiteFooter } from "@/components/site";
 import { HomeSections } from "@/components/home";
 import { INTRO_SCRIPT, IntroCurtain } from "@/components/IntroCurtain";
 
@@ -174,9 +174,6 @@ export default function Page() {
           </section>
 
           <HomeSections />
-          <div className="wrap">
-            <ClosingCards />
-          </div>
         </main>
       <SiteFooter />
       <SiteBehaviour />
