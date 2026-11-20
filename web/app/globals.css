@@ -1502,17 +1502,6 @@ a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rota
 }
 @media (prefers-reduced-motion: reduce) { .stock-mark { transition: none; } }
 
-/* Page curtain (lib/pageCurtain.ts): four green columns drop over the site, the app opens under
-   them, then they lift. Same columns as the landing's opening sequence. */
-.page-curtain { position: fixed; inset: 0; z-index: 1000; display: grid; grid-template-columns: repeat(4, 1fr); pointer-events: none; }
-.page-curtain i { background: var(--green); transform: translateY(-100%); transition: transform 0.6s var(--ease); }
-.page-curtain i + i { box-shadow: inset 1px 0 rgba(255, 255, 255, 0.08); }
-.page-curtain i:nth-child(2) { transition-delay: 0.05s; }
-.page-curtain i:nth-child(3) { transition-delay: 0.1s; }
-.page-curtain i:nth-child(4) { transition-delay: 0.15s; }
-.page-curtain.covering i { transform: none; }
-.page-curtain.covering.lifting i { transform: translateY(100%); transition-duration: 0.75s; }
-
 /* App sidebar account: one card (short address + login type) opening the Account page, and a
    log-out icon button. Copy, explorer and the recovery phrase live on the Account page. */
 .account-row { display: flex; align-items: stretch; gap: 0.4rem; }
@@ -1534,4 +1523,42 @@ a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rota
 .account-menu .account-text .addr { color: var(--ink); }
 .account-menu .account-chip .icon-chevron { color: var(--green-70); }
 .account-menu .logout { justify-self: start; color: var(--green); }
-@media (prefers-reduced-motion: reduce) { .page-curtain { display: none; } }
+
+/* Route curtain (components/RouteCurtain.tsx): four ink sheets close over the page with a small
+   painting each, the mark and a progress line in the middle; they open downward once the next
+   page's first screen has loaded. Idle: parked above the screen, invisible to clicks. */
+.route-curtain { position: fixed; inset: 0; z-index: 1001; display: grid; grid-template-columns: repeat(4, 1fr); pointer-events: none; }
+.route-curtain[data-state="cover"] { pointer-events: auto; cursor: progress; }
+.ink-sheet { position: relative; display: grid; place-items: center; overflow: hidden; background: var(--green); transform: translateY(-101%); transition: transform 0.48s var(--ease) calc(var(--i) * 0.045s); }
+.ink-sheet + .ink-sheet { box-shadow: inset 1px 0 rgba(244, 241, 234, 0.08); }
+.ink-sheet img { width: min(60%, 11rem); aspect-ratio: 1; object-fit: cover; border-radius: 0.3rem; opacity: 0; transform: translateY(1.5rem) scale(0.94); transition: opacity 0.4s var(--ease-link), transform 0.6s var(--ease-link); box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.3); }
+.ink-sheet:nth-child(odd) img { margin-top: -38vh; }
+.ink-sheet:nth-child(even) img { margin-top: 42vh; }
+.route-curtain[data-state="cover"] .ink-sheet { transform: none; }
+.route-curtain[data-state="cover"] .ink-sheet img { opacity: 0.85; transform: none; transition-delay: calc(0.3s + var(--i) * 0.07s); }
+.route-curtain[data-state="reveal"] .ink-sheet { transform: translateY(101%); transition-duration: 0.7s; }
+/* While parked above the screen there is nothing to animate back. */
+.route-curtain[data-state="idle"] .ink-sheet { transition: none; }
+.route-mark { position: absolute; left: 50%; top: 50%; display: grid; justify-items: center; gap: 0.6rem; transform: translate(-50%, -50%); color: var(--cream); text-align: center; opacity: 0; transition: opacity 0.3s var(--ease-link); }
+.route-curtain[data-state="cover"] .route-mark { opacity: 1; transition-delay: 0.32s; }
+.route-mark img { width: 3.5rem; height: 3.5rem; filter: brightness(0) invert(0.94) sepia(0.15); }
+.route-name { font-family: var(--serif); font-size: 2.25rem; line-height: 1; letter-spacing: -0.02em; }
+.route-caption { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(244, 241, 234, 0.7); }
+.route-progress { position: relative; width: 9rem; height: 1px; margin-top: 0.6rem; overflow: hidden; background: rgba(244, 241, 234, 0.2); }
+.route-progress::after { content: ""; position: absolute; inset: 0; background: var(--cream); transform: translateX(-100%); }
+.route-curtain[data-state="cover"] .route-progress::after { animation: route-progress 1.1s var(--ease) 0.35s infinite; }
+@keyframes route-progress { 0% { transform: translateX(-100%); } 60% { transform: translateX(0); } 100% { transform: translateX(100%); } }
+@media (max-width: 900px) {
+  .ink-sheet img { width: 70%; }
+  .route-name { font-size: 1.75rem; }
+}
+@media (prefers-reduced-motion: reduce) { .route-curtain { display: none; } }
+
+/* Market hours: the "now" marker breathes and its colon ticks, so the clock reads as live. */
+.day .now { animation: now-breathe 2s ease-in-out infinite; }
+.day .now .tick { font-weight: inherit; animation: tick 1s steps(1, end) infinite; }
+.day .now .pulse { position: absolute; left: 50%; top: 50%; width: 0.55rem; height: 0.55rem; margin: -0.275rem 0 0 -0.275rem; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(12, 54, 40, 0.5); animation: now-pulse 2s ease-out infinite; }
+@keyframes tick { 50% { opacity: 0; } }
+@keyframes now-breathe { 50% { background-color: rgba(14, 15, 13, 0.3); } }
+@keyframes now-pulse { 70% { box-shadow: 0 0 0 0.6rem rgba(12, 54, 40, 0); } 100% { box-shadow: 0 0 0 0 rgba(12, 54, 40, 0); } }
+@media (prefers-reduced-motion: reduce) { .day .now, .day .now .tick, .day .now .pulse { animation: none; } }

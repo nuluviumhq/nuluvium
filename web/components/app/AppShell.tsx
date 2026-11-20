@@ -6,9 +6,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 import { ChevronIcon, LogoutIcon } from "@/components/icons";
-import { liftCurtain } from "@/lib/pageCurtain";
 import { useSession } from "./session";
 
 const PAGES = [
@@ -42,11 +40,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const current = PAGES.find((page) => page.href === pathname) ?? PAGES[0];
   const { session, openLogin, logout } = useSession();
-
-  // Arriving from the site behind the page curtain: lift it once the app shell is on screen.
-  useEffect(() => {
-    liftCurtain();
-  }, []);
 
   return (
     <>

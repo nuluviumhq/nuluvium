@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Mono, Hanken_Grotesk, Mrs_Saint_Delafield, Source_Serif_4 } from "next/font/google";
+import { RouteCurtain } from "@/components/RouteCurtain";
 import "./globals.css";
 
 // Fonts are downloaded at build time and served from our own domain, so visitors' browsers never
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     // suppressHydrationWarning: the landing page sets data-intro on <html> before React hydrates (IntroCurtain).
     <html lang="en" className={`${serif.variable} ${hanken.variable} ${dmMono.variable} ${signature.variable}`} suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        {children}
+        <RouteCurtain />
+      </body>
     </html>
   );
 }

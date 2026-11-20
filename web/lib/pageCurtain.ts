@@ -1,38 +1,54 @@
-// Page curtain: the transition from the site into the app. Four green columns drop over the page
-// (the same columns as the landing's opening sequence), the app route loads underneath, then the
-// columns lift away. Skipped for people who ask for less motion, and for clicks that open a new tab.
+// Route curtain helpers (components/RouteCurtain.tsx): which clicks get the curtain, and when the
+// next page is ready to be shown. Modelled on page transitions that cover the page, load the next
+// route underneath, and only reveal once its first screen has loaded.
 
-const CURTAIN_ID = "page-curtain";
-/** How long the columns take to cover the page before navigating (keep in step with the stylesheet). */
-export const CURTAIN_COVER_MS = 650;
+/** How long the sheets take to cover the page before the route changes (keep in step with the CSS). */
+export const CURTAIN_COVER_MS = 480;
 
-const lessMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/** Drops the curtain; resolves once the page is covered. Resolves at once when motion is reduced. */
-export function dropCurtain(): Promise<void> {
-  if (lessMotion() || document.getElementById(CURTAIN_ID)) return Promise.resolve();
-  const curtain = document.createElement("div");
-  curtain.id = CURTAIN_ID;
-  curtain.className = "page-curtain";
-  curtain.setAttribute("aria-hidden", "true");
-  curtain.innerHTML = "<i></i><i></i><i></i><i></i>";
-  document.body.appendChild(curtain);
-  // Force a layout so the columns start above the screen, then let them animate down. (A reflow
-  // instead of requestAnimationFrame, which does not run in a background tab.)
-  void curtain.offsetHeight;
-  curtain.classList.add("covering");
-  return new Promise((resolve) => window.setTimeout(resolve, CURTAIN_COVER_MS));
-}
-
-/** Lifts a curtain left by dropCurtain (called once the next page is on screen), then removes it. */
-export function liftCurtain() {
-  const curtain = document.getElementById(CURTAIN_ID);
-  if (!curtain) return;
-  curtain.classList.add("lifting");
-  window.setTimeout(() => curtain.remove(), 1000);
-}
+export const lessMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** True for a plain left click that should navigate in this tab. */
 export function isPlainClick(event: MouseEvent) {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+}
+
+const route = (path: string) => path.replace(/\/$/, "") || "/";
+const inApp = (path: string) => route(path) === "/app" || path.startsWith("/app/");
+
+/**
+ * The same-origin destination of a link that should get the curtain, or null. Skipped: other sites,
+ * new tabs, downloads, links to the same page (anchors), and moves between two app pages (a tool
+ * people click through often; the curtain is for the site and for entering or leaving the app).
+ */
+export function curtainTarget(anchor: HTMLAnchorElement): URL | null {
+  if (anchor.target === "_blank" || anchor.hasAttribute("download")) return null;
+  const url = new URL(anchor.href, window.location.href);
+  if (url.origin !== window.location.origin) return null;
+  const from = window.location.pathname;
+  if (route(url.pathname) === route(from)) return null;
+  if (inApp(url.pathname) && inApp(from)) return null;
+  return url;
+}
+
+/** Resolves when the promise settles or after `ms`, whichever is first. */
+const capped = (promise: Promise<unknown>, ms: number) =>
+  Promise.race([promise.catch(() => undefined), new Promise((resolve) => window.setTimeout(resolve, ms))]);
+
+/**
+ * Waits until the new page's first screen is ready: fonts, then the images in the first 1.2 screens
+ * (made eager so they start at once). Every wait is capped so a slow image never holds the curtain.
+ */
+export async function pageReady() {
+  await new Promise((resolve) => window.setTimeout(resolve, 60));
+  await capped(document.fonts.ready, 300);
+  const fold = window.innerHeight * 1.2;
+  const firstScreen = [...document.images].filter((image) => image.getBoundingClientRect().top < fold);
+  for (const image of firstScreen) image.loading = "eager";
+  const loaded = (image: HTMLImageElement) =>
+    new Promise<void>((resolve) => {
+      if (image.complete) return resolve();
+      image.addEventListener("load", () => resolve(), { once: true });
+      image.addEventListener("error", () => resolve(), { once: true });
+    });
+  await capped(Promise.all(firstScreen.map(loaded)), 1200);
 }

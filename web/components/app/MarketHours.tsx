@@ -43,7 +43,7 @@ export function MarketHours() {
         aria-label={session ? `Today the US market is open from ${hhmm(session.start)} to ${hhmm(session.end)} UTC.` : "The US market is closed today."}
       >
         {session ? <span className="session" style={{ left: percent(session.start), width: percent(session.end - session.start) }}></span> : null}
-        {state ? <span className="now" style={{ left: percent(state.nowUtcMinute) }}><i>{hhmm(state.nowUtcMinute)}</i></span> : null}
+        {state ? <span className="now" style={{ left: percent(state.nowUtcMinute) }}><i>{hhmm(state.nowUtcMinute).split(":")[0]}<b className="tick">:</b>{hhmm(state.nowUtcMinute).split(":")[1]}</i><span className="pulse" /></span> : null}
       </div>
       <div className="hours mono soft"><span>00</span><span>06</span><span>12</span><span>18</span><span>24 UTC</span></div>
       <p className="fine">

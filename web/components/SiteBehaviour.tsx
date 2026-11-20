@@ -7,32 +7,13 @@
 // - the live tile field in the agents card
 // - "scroll steps" scenes: a pinned panel whose view follows a numbered list
 // - [data-reveal] blocks fade in as they scroll into view
-// - links into the app drop the page curtain first
 // It works on the rendered markup (classes from the stylesheet); it renders nothing itself.
 
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { dropCurtain, isPlainClick } from "@/lib/pageCurtain";
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 export function SiteBehaviour() {
-  const router = useRouter();
-
-  // Links into the app: the page curtain drops, the app route opens under it (lib/pageCurtain.ts).
-  useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      const link = (event.target as Element | null)?.closest?.('a[href^="/app"]') as HTMLAnchorElement | null;
-      if (!link || link.target === "_blank" || !isPlainClick(event)) return;
-      event.preventDefault();
-      const href = link.getAttribute("href") ?? "/app";
-      router.prefetch(href);
-      void dropCurtain().then(() => router.push(href));
-    };
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, [router]);
-
   useEffect(() => {
     const cleanups: Array<() => void> = [];
     const lessMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
