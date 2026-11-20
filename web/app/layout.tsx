@@ -23,7 +23,8 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${serif.variable} ${hanken.variable} ${dmMono.variable} ${signature.variable}`}>
+    // suppressHydrationWarning: the landing page sets data-intro on <html> before React hydrates (IntroCurtain).
+    <html lang="en" className={`${serif.variable} ${hanken.variable} ${dmMono.variable} ${signature.variable}`} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

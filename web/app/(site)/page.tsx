@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { LandingScene, StatementWords } from "@/components/LandingScene";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
 import { SiteHeader, Banner, ClosingCards, SiteFooter } from "@/components/site";
+import { HomeSections } from "@/components/home";
+import { INTRO_SCRIPT, IntroCurtain } from "@/components/IntroCurtain";
 
 export const metadata: Metadata = {
   title: { absolute: "Nuluvium | The privacy layer for onchain stocks" },
@@ -18,6 +20,10 @@ const STATEMENT = [
 export default function Page() {
   return (
     <>
+      {/* Runs before first paint: decides whether the opening sequence plays (IntroCurtain). */}
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string from IntroCurtain, no user input */}
+      <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
+      <IntroCurtain />
       <Banner />
       <SiteHeader />
       <main>
@@ -167,6 +173,7 @@ export default function Page() {
             </div>
           </section>
 
+          <HomeSections />
           <div className="wrap">
             <ClosingCards />
           </div>

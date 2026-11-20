@@ -3,25 +3,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
 import { SiteHeader, ClosingCards, SiteFooter } from "@/components/site";
+import { MCP_EXAMPLE } from "@/lib/mcpExample";
 
 export const metadata: Metadata = {
   title: "Agents",
   description: "Let an AI agent trade stock tokens without publishing its strategy: one tool call routes each order through fresh addresses.",
 };
-
-// The real setup (docs/mcp.md): a local stdio server; the secret comes from the agent's environment.
-const MCP_EXAMPLE = `{
-  "mcpServers": {
-    "nuluvium": {
-      "command": "npx",
-      "args": ["-y", "@nuluvium/mcp"],
-      "env": {
-        "NULUVIUM_MNEMONIC": "\${NULUVIUM_MNEMONIC}",
-        "NULUVIUM_NETWORK": "robinhood-testnet"
-      }
-    }
-  }
-}`;
 
 export default function Page() {
   return (

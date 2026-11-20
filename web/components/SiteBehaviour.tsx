@@ -6,6 +6,7 @@
 // - the two closing cards swap roles
 // - the live tile field in the agents card
 // - "scroll steps" scenes: a pinned panel whose view follows a numbered list
+// - [data-reveal] blocks fade in as they scroll into view
 // It works on the rendered markup (classes from the stylesheet); it renders nothing itself.
 
 import { useEffect } from "react";
@@ -140,6 +141,28 @@ export function SiteBehaviour() {
       });
       }
     };
+
+    // Reveal on scroll: [data-reveal] blocks rise and fade in once, when they first come into view.
+    // They are only hidden after this runs (html[data-reveal-ready]), so without JavaScript they stay visible.
+    const revealables = [...document.querySelectorAll<HTMLElement>("[data-reveal]")];
+    if (revealables.length && !lessMotion && "IntersectionObserver" in window) {
+      document.documentElement.dataset.revealReady = "";
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        },
+        { rootMargin: "0px 0px -12% 0px" },
+      );
+      for (const element of revealables) observer.observe(element);
+      cleanups.push(() => {
+        observer.disconnect();
+        delete document.documentElement.dataset.revealReady;
+      });
+    }
 
     let queued = false;
     const onScroll = () => {
