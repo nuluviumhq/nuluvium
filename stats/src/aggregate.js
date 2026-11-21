@@ -1,5 +1,6 @@
 // Turns the public events of the Nuluvium pool and Router into the numbers on the stats page.
-// Pure (no chain, no KV) so it can be tested. Only totals over everyone: nothing here is per user,
+// Pure (no chain, no KV) so it can be tested. The Worker now keeps running totals (totals.js);
+// aggregate() over the full event list stays as the reference the totals are tested against. Only totals over everyone: nothing here is per user,
 // and the page never lists addresses or links deposits to pieces.
 
 const HOUR = 3600;
