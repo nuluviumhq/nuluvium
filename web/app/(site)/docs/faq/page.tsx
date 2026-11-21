@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <DocsPage slug="faq" lead="Common questions, and what to do when something does not work.">
       <DocSection n={1} title="My deposit stays &quot;waiting for approval&quot;">
-        <p>The approved-set provider checks every minute, so approval usually takes a minute or two. A deposit above 1,000 USDG, past the 25,000 total, or from a screened-out wallet is never approved.</p>
+        <p>The approved-set provider checks every minute, so approval usually takes a minute or two. A deposit above 1,000 USDG, past the 25,000 total, from a screened-out wallet, or paid for with USDG from a screened-out wallet (10% of the deposit or more) is never approved.</p>
         <p>An unapproved deposit can be taken back, in full, to the wallet that made it: Take back, next to the deposit on Overview. This is called ragequit and is part of the Privacy Pools contracts. It works for approved deposits too, and is public: anyone can see the wallet got that deposit back.</p>
       </DocSection>
       <DocSection n={2} title="My balance is 0 after logging in">

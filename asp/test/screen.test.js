@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { rawCid } from "../src/cid.js";
-import { REASONS, approvedRoot, screenDeposits } from "../src/screen.js";
+import { REASONS, approvedRoot, screenDeposits, screenSources } from "../src/screen.js";
 
 const USDG = 1_000_000n;
 const rules = (overrides = {}) => ({
@@ -10,6 +10,7 @@ const rules = (overrides = {}) => ({
   issuerBlocked: new Set(),
   perDepositCap: 1_000n * USDG,
   totalCap: 25_000n * USDG,
+  checkSources: false, // the source check has its own tests below
   ...overrides,
 });
 let nextBlock = 100n;
@@ -90,4 +91,48 @@ test("CID: known vector and length accepted by updateRoot (32 to 64)", async () 
   const cid = await rawCid(new TextEncoder().encode("hello world"));
   assert.equal(cid, "bafkreifzjut3te2nhyekklss27nh3k72ysco7y32koao5eei66wof36n5e");
   assert.equal(cid.length, 59);
+});
+
+// Source of funds, one hop back.
+const MIXER = "0x00000000000000000000000000000000000000AA";
+const FAUCET = "0x00000000000000000000000000000000000000FA";
+const traced = (item, transfers) => ({ ...item, sources: { transfers: transfers.map(([from, usdg]) => ({ from, value: BigInt(usdg) * USDG })) } });
+const sourceRules = (overrides = {}) => rules({ checkSources: true, ...overrides });
+
+test("rejects a deposit when at least 10% of it came from a sanctioned, issuer-blocked or denylisted sender", () => {
+  const sanctioned = new Set([MIXER.toLowerCase()]);
+  const result = screenDeposits([traced(deposit(ALICE, 100, 1), [[FAUCET, 90], [MIXER, 10]])], sourceRules({ sanctioned }));
+  assert.equal(result.rejected[0].reason, REASONS.SOURCE_SANCTIONED);
+
+  const blocked = screenDeposits([traced(deposit(ALICE, 100, 2), [[MIXER, 50]])], sourceRules({ issuerBlocked: new Set([MIXER.toLowerCase()]) }));
+  assert.equal(blocked.rejected[0].reason, REASONS.SOURCE_ISSUER_BLOCKED);
+
+  const denied = screenDeposits([traced(deposit(ALICE, 100, 3), [[MIXER.toUpperCase().replace("0X", "0x"), 100]])], sourceRules({ denylist: new Set([MIXER.toLowerCase()]) }));
+  assert.equal(denied.rejected[0].reason, REASONS.SOURCE_DENYLISTED);
+});
+
+test("dust from a flagged sender (under 10% of the deposit) does not get a deposit refused", () => {
+  const sanctioned = new Set([MIXER.toLowerCase()]);
+  const result = screenDeposits([traced(deposit(ALICE, 100, 1), [[FAUCET, 100], [MIXER, 9]])], sourceRules({ sanctioned }));
+  assert.equal(result.approved.length, 1);
+  assert.equal(screenSources(traced(deposit(ALICE, 100, 2), [[MIXER, 9]]), { sanctioned, issuerBlocked: new Set(), denylist: new Set() }), null);
+});
+
+test("the depositor's own listing is reported before a source reason", () => {
+  const sanctioned = new Set([ALICE.toLowerCase(), MIXER.toLowerCase()]);
+  const result = screenDeposits([traced(deposit(ALICE, 100, 1), [[MIXER, 100]])], sourceRules({ sanctioned }));
+  assert.equal(result.rejected[0].reason, REASONS.SANCTIONED);
+});
+
+test("an untraced deposit waits, and so does every later one (the total cap stays first come, first approved)", () => {
+  const deposits = [traced(deposit(ALICE, 10, 1), []), { ...deposit(BOB, 10, 2), sources: null }, traced(deposit(ALICE, 10, 3), [[FAUCET, 10]])];
+  const result = screenDeposits(deposits, sourceRules());
+  assert.deepEqual(result.approved.map((item) => item.label), [1n]);
+  assert.deepEqual(result.waiting.map((item) => item.label), [2n, 3n]);
+  assert.equal(result.rejected.length, 0);
+});
+
+test("a deposit made from minted USDG (no flagged sender) passes", () => {
+  const result = screenDeposits([traced(deposit(ALICE, 10, 1), [["0x0000000000000000000000000000000000000000", 10]])], sourceRules());
+  assert.equal(result.approved.length, 1);
 });

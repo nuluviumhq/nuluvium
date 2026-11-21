@@ -3,15 +3,20 @@
 //          document to KV under its CID and post the new root with Entrypoint.updateRoot.
 //   GET /            status (latest root, CID, counts)
 //   GET /sets/<cid>  the published set document, byte for byte what the CID hashes
-//   then:  commit each posted set to the public archive repo (src/publish.js), if GITHUB_TOKEN is set
+//   then:  commit each posted set to the public archive repo (src/publish.js), if GITHUB_TOKEN is set,
+//          and pin it to public IPFS (src/ipfs.js), if PINATA_JWT is set
 //
-// Fails closed: if the OFAC list or the issuer check cannot be read, nothing is posted.
+// Screening covers the depositor and, one hop back, the senders of the depositor's USDG
+// (src/trace.js). Fails closed: if the OFAC list, the issuer check or a source trace cannot be
+// read, nothing is posted.
 
 import { createPublicClient, createWalletClient, decodeEventLog, defineChain, http, parseAbi, parseAbiItem } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { rawCid } from "./cid.js";
+import { pinPending, pinataUpload, queuePin, seedFromArchive } from "./ipfs.js";
 import { githubClient, publishPending, queueSet } from "./publish.js";
-import { REASONS, approvedRoot, screenDeposits } from "./screen.js";
+import { REASONS, SOURCE_SHARE_BPS, approvedRoot, screenDeposits } from "./screen.js";
+import { MAX_TRANSFERS, attachSources, senderAddresses } from "./trace.js";
 
 const depositedEvent = parseAbiItem(
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -23,10 +28,11 @@ const entrypointAbi = parseAbi([
 const rootUpdatedEvent = parseAbiItem("event RootUpdated(uint256 _root, string _ipfsCID, uint256 _timestamp)");
 const registryAbi = parseAbi(["function isBlocked(address account) view returns (bool)"]);
 
-// Alchemy allows at most 10,000 blocks per eth_getLogs. 30 chunks a run catch up 300,000 blocks
-// (about 8 hours of this chain) per minute after a pause.
+// Alchemy allows at most 10,000 blocks per eth_getLogs. 25 chunks a run catch up 250,000 blocks
+// (about 7 hours of this chain) per minute after a pause, and leave room under the 50 subrequests a
+// run for the source traces, the root post and publishing.
 const LOG_CHUNK = 10_000n;
-const MAX_CHUNKS_PER_RUN = 30n;
+const MAX_CHUNKS_PER_RUN = 25n;
 const CURSOR_SAVE_EVERY = 50_000n; // blocks; also saved whenever a new deposit is found
 const SCAN_KEY = "scan";
 const OFAC_CACHE_KEY = "ofac:eth";
@@ -147,15 +153,20 @@ export async function runOnce(env, { dryRun = false } = {}) {
   const chain = chainFor(env);
   const publicClient = createPublicClient({ chain, transport: http(rpcUrl(env), { timeout: 20_000, retryCount: 2 }) });
 
-  const [deposits, sanctioned] = await Promise.all([loadDeposits(publicClient, env), loadSanctioned(env)]);
-  const issuerBlocked = await loadIssuerBlocked(publicClient, env, deposits.map((deposit) => deposit.depositor));
+  const [scanned, sanctioned] = await Promise.all([loadDeposits(publicClient, env), loadSanctioned(env)]);
+  const { deposits, traced, failed: traceFailed } = await attachSources(scanned, { kv: env.ASP_SETS, rpcUrl: rpcUrl(env), usdg: env.USDG });
+  const issuerBlocked = await loadIssuerBlocked(publicClient, env, [
+    ...deposits.map((deposit) => deposit.depositor),
+    ...senderAddresses(deposits),
+  ]);
 
-  const { approved, rejected, approvedTotal } = screenDeposits(deposits, {
+  const { approved, rejected, waiting, approvedTotal } = screenDeposits(deposits, {
     sanctioned,
     denylist: addressSet(env.DENYLIST),
     issuerBlocked,
     perDepositCap: BigInt(env.PER_DEPOSIT_CAP),
     totalCap: BigInt(env.TOTAL_CAP),
+    sourceShareBps: SOURCE_SHARE_BPS,
   });
 
   const root = approvedRoot(approved.map((deposit) => deposit.label));
@@ -164,16 +175,21 @@ export async function runOnce(env, { dryRun = false } = {}) {
     deposits: deposits.length,
     approved: approved.length,
     rejected: rejected.length,
+    waiting: waiting.length,
+    traced,
+    ...(traceFailed.length ? { traceFailed } : {}),
     approvedTotal: approvedTotal.toString(),
     root: root.toString(),
     onchainRoot: onchainRoot.toString(),
     posted: false,
   };
-  if (root === 0n || root === onchainRoot || dryRun) return summary;
+  // While a deposit waits for its source trace, the current root stays: posting now would drop
+  // that deposit and every later one from the set until the trace is done.
+  if (waiting.length > 0 || root === 0n || root === onchainRoot || dryRun) return summary;
 
   // The published document: what was approved, what was not and why, under which rules.
   const document = {
-    version: 1,
+    version: 2,
     chainId: chain.id,
     pool: env.POOL,
     root: root.toString(),
@@ -181,6 +197,13 @@ export async function runOnce(env, { dryRun = false } = {}) {
       perDepositCap: env.PER_DEPOSIT_CAP,
       totalCap: env.TOTAL_CAP,
       checks: Object.values(REASONS),
+      // One hop back: USDG the depositor received up to the deposit block (newest transfers first).
+      sourceCheck: {
+        hops: 1,
+        token: env.USDG,
+        maxTransfers: MAX_TRANSFERS,
+        rejectAtShareOfDeposit: `${Number(SOURCE_SHARE_BPS) / 100}%`,
+      },
       ofacSource: env.OFAC_LIST_URL,
       ofacAddresses: sanctioned.size,
     },
@@ -205,6 +228,7 @@ export async function runOnce(env, { dryRun = false } = {}) {
 
   await env.ASP_SETS.put(LATEST_KEY, JSON.stringify({ cid, root: root.toString(), tx: hash, postedAt: document.createdAt }));
   await queueSet(env.ASP_SETS, { cid, tx: hash });
+  await queuePin(env.ASP_SETS, { cid, tx: hash });
   return { ...summary, posted: true, cid, tx: hash };
 }
 
@@ -236,6 +260,19 @@ export async function publishSets(env, { fetchImpl } = {}) {
   });
 }
 
+/** Pins posted sets to public IPFS. Skipped when the PINATA_JWT secret is not set. */
+export async function pinSets(env, { fetchImpl = fetch } = {}) {
+  if (!env.PINATA_JWT) return { skipped: "no PINATA_JWT" };
+  const seeded = await seedFromArchive({ kv: env.ASP_SETS, indexUrl: env.ARCHIVE_INDEX_URL, fetchImpl });
+  const publicClient = createPublicClient({ chain: chainFor(env), transport: http(rpcUrl(env), { timeout: 20_000, retryCount: 2 }) });
+  const result = await pinPending({
+    kv: env.ASP_SETS,
+    readRootUpdated: (tx) => readRootUpdated(publicClient, env, tx),
+    upload: (bytes, name) => pinataUpload({ jwt: env.PINATA_JWT, bytes, name, fetchImpl }),
+  });
+  return seeded === null ? result : { ...result, seeded };
+}
+
 // Never log error.message: viem puts the full RPC URL (with its key) in it.
 const describe = (error) => `${error.shortMessage ?? error.name}${error.details ? ` (${error.details})` : ""}`;
 
@@ -259,6 +296,12 @@ export default {
           if (result.published?.length || result.failed?.length) console.log(`publish: ${JSON.stringify(result)}`);
         } catch (error) {
           console.error(`publish failed: ${describe(error)}`);
+        }
+        try {
+          const result = await pinSets(env);
+          if (result.pinned?.length || result.failed?.length || result.seeded) console.log(`ipfs: ${JSON.stringify(result)}`);
+        } catch (error) {
+          console.error(`ipfs failed: ${describe(error)}`);
         }
       })(),
     );

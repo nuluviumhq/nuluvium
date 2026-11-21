@@ -1,5 +1,6 @@
 // Nuluvium ASP Worker, Robinhood Chain TESTNET. Secrets (not in this file): POSTMAN_KEY,
-// PRIVATE_RPC_URL, GITHUB_TOKEN (optional; fine-grained, approved-sets repo only, Contents read/write).
+// PRIVATE_RPC_URL (Alchemy: the source check uses alchemy_getAssetTransfers), GITHUB_TOKEN (optional;
+// fine-grained, approved-sets repo only, Contents read/write), PINATA_JWT (optional; IPFS pinning).
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "darkpool-asp-testnet",
@@ -21,6 +22,8 @@
     "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
     "ENTRYPOINT": "0x1C7Bd821a61A90BA06e21aac4e03640E3D065536",
     "POOL": "0x2B38bF53acc21a51603E68f5BC3bC8943B01fD4a",
+    // The pool's token; the source check traces where a depositor's USDG came from.
+    "USDG": "0xd26d58F86cf82c702b558D6E7F159939E97F0Bfa",
     // L2 block of the deploy (from contracts/broadcast receipts).
     "DEPLOY_BLOCK": "153603397",
     // Stock token issuer registry on testnet (TSLA's ACCESS_CONTROLLED_REGISTRY()).
@@ -34,6 +37,8 @@
     "DENYLIST": "0xA784757251fD24dF5ce44FF783Da3a661f1395D3",
     // Public archive of every posted set (src/publish.js commits there when GITHUB_TOKEN is set).
     "GITHUB_REPO": "nuluviumhq/approved-sets",
-    "GITHUB_BRANCH": "main"
+    "GITHUB_BRANCH": "main",
+    // Read once when PINATA_JWT is first set, to pin the sets posted before IPFS pinning.
+    "ARCHIVE_INDEX_URL": "https://raw.githubusercontent.com/nuluviumhq/approved-sets/main/index.json"
   }
 }

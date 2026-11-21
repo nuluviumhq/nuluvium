@@ -127,12 +127,32 @@ has one depositor. Unlinkability needs many depositors and separate relayer keys
 - Checks per deposit, in chain order: OFAC SDN ETH addresses (daily list by 0xB10C from Treasury data,
   123 addresses, cached in KV, refuses a list under 50 entries), issuer registry `isBlocked`
   (testnet registry 0x1dF3cA0fD30ED5eeb09eB01938f4E9c5196E6Ca5), our denylist, $1,000 per deposit,
-  $25,000 approved in total. Only the depositor address is screened in v1.
+  $25,000 approved in total. Only the depositor address was screened in v1; since 2026-11-21 the
+  source of funds too (below).
 - Postman 0xD40CA7EE663FddFc02d170E5e81bAe6D3a5B3E32 holds ASP_POSTMAN; the deployer renounced it.
   Worker secrets: POSTMAN_KEY, PRIVATE_RPC_URL.
 - **RPC:** the public testnet RPC answers 429 to Cloudflare Workers (shared outgoing IPs), so the Worker
   uses an Alchemy URL (secret). The testnet uses a shared Alchemy key
   for now; a key of Nuluvium's own is needed before mainnet.
+
+### Source of funds and IPFS (2026-11-21)
+- **One hop back.** For each deposit the ASP reads the USDG transfers the depositor received up to the
+  deposit block (`alchemy_getAssetTransfers`, newest 100, 10 s timeout, at most 5 traces a run;
+  `asp/src/trace.js`). Plain `eth_getLogs` cannot do this on Alchemy: it is capped at 10,000 blocks per
+  call. Traces are kept in KV (`traces`); the senders are checked against the current OFAC list, the
+  issuer's `isBlocked` and the denylist on every run. A deposit is refused when flagged senders sent at
+  least 10% of its value (smaller amounts are dust and do not count). An untraced deposit waits, every
+  later deposit waits behind it (cap order), and no root is posted until it is traced.
+- **Dry run on the live data** (20 deposits, local, nothing posted): traced in 4 runs, 0 truncated; the
+  only senders are mints (0x0), the Entrypoint, the pool and the Router, so the new root equals the
+  root on chain. With the Router put on the denylist as a test, one deposit (over 10% from the Router)
+  became "funds came from an address on the Nuluvium denylist" and the others passed.
+- **Not covered:** funds that passed through a clean wallet first. USDG paid out by the pool, the
+  Entrypoint or the Router comes from deposits that were screened when they went in.
+- **IPFS.** Each posted set is uploaded to Pinata (public IPFS) after the same checks as the GitHub
+  archive (RootUpdated root + CID, document hashes to the CID); the CID Pinata reports must equal the
+  posted CID (a set is one block under 256 KiB, so it does). On its first run with the secret
+  PINATA_JWT it also queues every earlier set from the archive's index.json. At most 3 pins a run.
 
 ### Demo run (`testnet/runs/asp-demo-2026-11-15T11-04-09-482Z.json`)
 Published set: [bafkreigtrmgqjsdxtlf6fzivnhhlwwtd3faqmtfqv6cp5xsclpdd7zc7vm](https://asp.nuluvium.com/sets/bafkreigtrmgqjsdxtlf6fzivnhhlwwtd3faqmtfqv6cp5xsclpdd7zc7vm),

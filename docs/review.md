@@ -24,8 +24,8 @@ on every push ([.github/workflows/ci.yml](../.github/workflows/ci.yml)).
 | sdk | typecheck, `npm test` | 17 pass |
 | mcp | typecheck, `npm test`, `npm pack --dry-run` | 13 pass |
 | relayer | `npm test` | 8 pass |
-| asp | `npm test` | 21 pass |
-| stats | `npm test` | 7 pass |
+| asp | `npm test` | 36 pass |
+| stats | `npm test` | 12 pass |
 | web | typecheck, `npm test`, `next build` | 10 pass (pure logic only: no UI tests), build passes |
 
 Fork tests read live chain state (stock token permits, the deployed pool). They are skipped unless
@@ -54,11 +54,11 @@ see their own audits in the submodule.
 | …but only as private as the crowd | Few deposits let timing and amounts point a piece to its deposit | Said on the site, the stats page (under 50 approved deposits) and the README; [live crowd size](https://nuluvium.com/stats) |
 | Not private from Robinhood | Stock tokens are issued by Robinhood | Stated in the README, the site and the app |
 | Orders are split into random sizes at random times | `sdk/src/planner.ts` | `sdk/test/planner.test.ts`; the stats page's piece-size chart |
-| No server stores which fresh addresses belong to whom | Keys are made on the user's device; the relayer only sees one piece at a time | `web/components/app/session.tsx`, `web/lib/deviceKeys.ts` (email logins), `mcp/` runs on the agent's machine. Relayer: no storage, `observability: false` in `relayer/wrangler.jsonc`. Stats: totals only (`stats/src/aggregate.js`) |
+| No server stores which fresh addresses belong to whom | Keys are made on the user's device; the relayer only sees one piece at a time | `web/components/app/session.tsx`, `web/lib/deviceKeys.ts` (email logins), `mcp/` runs on the agent's machine. Relayer: no storage, `observability: false` in `relayer/wrangler.jsonc`. Stats: running totals only (`stats/src/totals.js`) |
 | Privy (login) cannot rebuild the keys | Email logins use a random phrase made in the browser, never a signature of the Privy wallet | `web/lib/deviceKeys.ts`, `session.tsx` (`unlock`) |
 | The relayer cannot change an order or take more than the signed fee | The fresh address signs the order (EIP-712) with its own price limit and fee cap | `contracts/src/NuluviumRouter.sol` `_swap` (signature, nonce, deadline, `maxFee`, `minAmountOut`); tests in `NuluviumRouter.t.sol`. The relayer also refuses `minAmountOut = 0` (`relayer/src/parse.js`) |
 | Fee is 0.10 USDG per piece today | The larger of 0.10 USDG and gas + 20% | `relayer/src/fee.js`; live at `/quote` |
-| Every deposit is screened; up to 1,000 USDG each, 25,000 in total | OFAC list, the issuer's blocklist, our denylist, beta caps | `asp/src/screen.js` + tests. Fails closed: if a list cannot be read, no root is posted (`asp/src/worker.js`). Every set: [approved-sets](https://github.com/nuluviumhq/approved-sets) |
+| Every deposit is screened; up to 1,000 USDG each, 25,000 in total | OFAC list, the issuer's blocklist, our denylist, beta caps; the depositor and, one hop back, the senders of its USDG (refused at 10% of the deposit or more) | `asp/src/screen.js`, `asp/src/trace.js` + tests. Fails closed: if a list or a source trace cannot be read, no root is posted (`asp/src/worker.js`). Every set: [approved-sets](https://github.com/nuluviumhq/approved-sets) |
 | A deposit can always be taken back by its depositor | `ragequit` is on the pool contract itself, which is not upgradeable | Privacy Pools `PrivacyPool.ragequit`; `sdk/src/exit.ts`; testnet ragequits in [testnet.md](testnet.md) |
 | Not offered in the US and restricted countries | Country check on the app and API | `web/lib/geo.ts` + test, `web/custom-worker.ts` (HTTP 451) |
 | Fails closed when the approved set cannot be read | Notes count as waiting, not approved | Web: `web/lib/chain.ts` (`readShieldedBalance`); MCP: `route_order` refuses (`mcp/src/server.ts`) |
@@ -85,4 +85,7 @@ tokens already on a fresh address stay under that address's key.
 - Minimum output for buys uses the mock's fixed price on testnet; mainnet needs a Uniswap quote.
 - The web app has no UI tests; its tests cover pure logic (country check, chain reads, RPC policy).
 - No independent audit yet; deposits stay capped until there is one.
+- Source-of-funds screening goes one hop back only: USDG that passed through a clean wallet first is not traced. It relies on Alchemy's transfers API (`alchemy_getAssetTransfers`); on another RPC the trace fails and deposits wait (fail closed).
+- Approved sets are pinned to IPFS through one service (Pinata, free plan: 500 files). Mainnet: a second pin (another service or our own node).
+- The ASP and the stats Worker keep one KV entry per deposit (the ASP's `scan`, the stats `deposits` list). That grows with deposits, not swaps, and deposits are capped; fine for the beta, not for open deposits.
 - The public history starts on 2026-11-16 with one commit: earlier work was in a private repository.
