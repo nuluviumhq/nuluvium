@@ -5,8 +5,9 @@
 
 import { useEffect, useState } from "react";
 import { formatUsdg, readRecentPieces, type PublicPiece } from "@/lib/chain";
-import { CONTRACTS } from "@/lib/contracts";
+import { CONTRACTS, OWNER_SAFE, PREVIOUS_OWNER } from "@/lib/contracts";
 import { marble } from "@/lib/format";
+import { type OwnerRoles, readOwnerRoles } from "@/lib/owners";
 import { TOKENS } from "@/lib/tokens";
 import { explorerAddress, explorerTx, shortAddress } from "@/lib/wallet";
 
@@ -25,6 +26,17 @@ const CLAIMS = [
   { name: "Open source code", state: "Published on GitHub", checkable: true },
 ];
 
+const sameAddress = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** The owner address as an explorer link, named when it is the Safe. */
+function ownerLink(address: string) {
+  return (
+    <a className="text-link mono" href={explorerAddress(address)} target="_blank" rel="noreferrer">
+      {sameAddress(address, OWNER_SAFE) ? `Safe ${shortAddress(address)}` : shortAddress(address)}
+    </a>
+  );
+}
+
 interface ApprovedSetStatus {
   cid: string;
   tx: string;
@@ -37,9 +49,11 @@ export function Proof() {
   const checkable = CLAIMS.filter((claim) => claim.checkable).length;
   const [set, setSet] = useState<ApprovedSetStatus | null | "failed">(null);
   const [recent, setRecent] = useState<PublicPiece[] | null>(null);
+  const [owners, setOwners] = useState<OwnerRoles | null | "failed">(null);
 
   useEffect(() => {
     readRecentPieces(6).then(setRecent, () => setRecent([]));
+    readOwnerRoles().then(setOwners, () => setOwners("failed"));
     (async () => {
       const status = (await (await fetch(`${ASP_URL}/`)).json()) as { latest?: { cid: string; tx: string; postedAt: string } };
       if (!status.latest) throw new Error("no set yet");
@@ -133,6 +147,23 @@ export function Proof() {
             <p className="fine">Every deposit is screened (OFAC list, the stock token issuer&#39;s blocklist, the caps). The list is published under its content hash, and its root is posted on chain; a withdrawal must prove its deposit is in it.</p>
           </section>
         </div>
+
+        <section className="box" aria-label="Owner">
+          <div className="box-head"><h2 className="title">Owner</h2><span className="mono soft">Read from the chain</span></div>
+          <div className="form-rows flush">
+            {owners && owners !== "failed" ? (
+              <>
+                <div><span className="name"><span className="n">01</span>Router owner</span>{ownerLink(owners.routerOwner)}</div>
+                <div><span className="name"><span className="n">02</span>Entrypoint owner role</span><span className="value">{owners.safeHasEntrypointOwnerRole ? "Held by the Safe" : "Not held by the Safe"}</span></div>
+                <div><span className="name"><span className="n">03</span>Signatures needed</span><span className="value">{owners.safeThreshold} of {owners.safeSigners}</span></div>
+                <div><span className="name"><span className="n">04</span>Deployer, owner until 21 Nov 2026</span><span className="value">{owners.previousOwnerHasEntrypointOwnerRole || sameAddress(owners.routerOwner, PREVIOUS_OWNER) ? "Still holds a role" : "No role"}</span></div>
+              </>
+            ) : (
+              <div><span className="name">{owners === "failed" ? "Could not read the owner" : "Reading the owner…"}</span></div>
+            )}
+          </div>
+          <p className="fine">The owner can allow or remove stock tokens, pause Router swaps, upgrade the Entrypoint and wind down the pool. It cannot move anyone&#39;s deposit or tokens, change a signed order or stop a depositor taking a deposit back (ragequit).</p>
+        </section>
 
         <section className="box" aria-label="Recent pieces">
           <div className="box-head"><h2 className="title">Recent pieces</h2><span className="mono soft">Public, from the chain</span></div>

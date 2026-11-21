@@ -46,6 +46,34 @@ which some networks block.
 The forked Privacy Pools contracts (v1.3.0, unchanged, pinned submodule) are not re-reviewed here;
 see their own audits in the submodule.
 
+### npm audit
+
+`npm audit` in each package (2026-11-21). Root, contracts, stats and faucet: 0. The Worker bundle
+holds none of the packages below: server code imports only `@nuluvium/sdk/config`, and the full SDK
+and Privy load in the browser only.
+
+**web: 46 (20 moderate, 26 high)**, from 8 root packages; the rest are the packages that depend on them.
+
+| Package | Comes from | Runs in | Verdict | Fix |
+|---|---|---|---|---|
+| zod 3.x (memory on oversized input) | Privy → x402, Coinbase CDP SDK, Reown AppKit | Browser, login only | Low: the input is the user's own wallet and login data in their own tab | None in zod 3; needs Privy to move to zod 4 |
+| decode-uri-component 0.2 (DoS on malformed percent-encoding) | Privy → WalletConnect → query-string | Browser, login only | Low: at worst the user's own tab hangs | Privy 3.52.0 (WalletConnect 2.26) |
+| uuid 8/9 (bounds check when a buffer is passed) | Privy → MetaMask SDK | Browser, login only | Not reachable: called without a buffer | Privy 3.52.0 |
+| ws 8.17/8.18 (memory) | ethers (zk-kit, SDK), WalletConnect | Node only | Not reachable: browsers use their own WebSocket, the Worker does not bundle it | Override to 8.23.0 |
+| underscore 1.13.6 (recursion DoS) | SDK → snarkjs → bfj → jsonpath | snarkjs file reading | Not reachable: proofs load their files from memory | Override to 1.13.8 |
+| undici 7.29 | wrangler → miniflare | Local dev only | Not shipped | wrangler 4.166.0 |
+| glob 10.3, minimatch 9 | OpenNext → node-minify | Build only | Not shipped | OpenNext 1.20.18 (node-minify 10) |
+| glob 13, minimatch 10 (AbortSignal, globparts DoS) | OpenNext | Build only | Not shipped; the build passes its own patterns | None in glob 13 |
+
+Planned fix, tested on a copy of the lockfile, **not installed yet**: Privy 3.51.0 → 3.52.0,
+OpenNext 1.20.12 → 1.20.18, wrangler 4.151.0 → 4.166.0, overrides for `ws` and `underscore`, and viem
+2.57.8 → 2.57.17 (Privy 3.52 pins it), held to one version with a `viem` override. That leaves 14:
+zod 3 in Privy's tree, and glob/minimatch in the build. No major upgrades.
+
+**Other packages** (same trees): sdk 8 and mcp 9 (snarkjs/zk-kit: underscore, ws, ethers; mcp also
+zod), asp 5 (zk-kit/ethers, viem → ws) and relayer 2 (viem → ws). All of them run in Node or a Worker
+that makes HTTP calls only, so ws is not reachable. The same `ws`/`underscore` overrides would fix them there.
+
 ## Claims and what they rest on
 
 | Claim | Where it holds | Proof |
