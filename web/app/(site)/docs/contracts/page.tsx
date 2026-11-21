@@ -20,7 +20,7 @@ export default function Page() {
   return (
     <DocsPage slug="contracts" lead="Everything Nuluvium runs on Robinhood Chain testnet (chain 46630), so you can check it yourself.">
       <DocSection n={1} title="Contracts">
-        <div className="scroll-x">
+        <div className="ledger-box"><div className="scroll-x">
           <table className="rows narrow">
             <thead><tr><th>Contract</th><th>Address</th></tr></thead>
             <tbody>
@@ -32,11 +32,11 @@ export default function Page() {
               ))}
             </tbody>
           </table>
-        </div>
+        </div></div>
         <p>The Privacy Pools v1.3.0 contracts (pool, Entrypoint, verifiers) are deployed unchanged. The Router is Nuluvium&#39;s own: it checks the order signed by the fresh address, swaps on Uniswap v3 for allowlisted tokens only, and can be paused by its owner.</p>
       </DocSection>
       <DocSection n={2} title="Services">
-        <div className="scroll-x">
+        <div className="ledger-box"><div className="scroll-x">
           <table className="rows narrow">
             <thead><tr><th>Service</th><th>Address</th><th>What it does</th></tr></thead>
             <tbody>
@@ -45,7 +45,7 @@ export default function Page() {
               ))}
             </tbody>
           </table>
-        </div>
+        </div></div>
         <p>The live approved set, with its content hash and the transaction that posted its root, is on the app&#39;s <Link className="text-link" href="/app/proof">Proof</Link> page.</p>
       </DocSection>
       <DocSection n={3} title="Source code">

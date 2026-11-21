@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocSection, DocsPage } from "@/components/docs";
+import { ReceiptCard } from "@/components/layouts";
 
 export const metadata: Metadata = {
   title: "Fees and limits · Docs",
@@ -10,6 +11,18 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <DocsPage slug="fees-and-limits" lead="What a piece costs, how much you can deposit, and where the app is not offered.">
+      <ReceiptCard
+        title="One piece, worked out"
+        rows={[
+          ["Relayer fee", "The larger of 0.10 USDG and gas + 20%"],
+          ["Today", "0.10 USDG a piece"],
+          ["Gas for the piece", "Paid by the relayer"],
+          ["Smallest deposit", "1 USDG"],
+          ["Largest approved deposit", "1,000 USDG"],
+          ["All approved deposits", "25,000 USDG"],
+        ]}
+        foot={["Paid from your shielded balance", "Caps until an audit"]}
+      />
       <DocSection n={1} title="Relayer fee">
         <p>Each piece pays the relayer a fee in USDG from your shielded balance: the larger of 0.10 USDG and the piece&#39;s gas cost plus 20%. Gas on Robinhood Chain costs cents, so today the fee is 0.10 per piece. The app shows the total for all pieces before you route.</p>
         <p>The relayer pays the gas of every piece; the fresh addresses never need ETH. Selling from a fresh address pays the same fee, out of the USDG the sale brings. Your own wallet transactions (getting test USDG, approving, depositing, taking a deposit back) pay their gas in testnet ETH.</p>

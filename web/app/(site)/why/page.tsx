@@ -1,8 +1,10 @@
-// Ported from prototype/why.html.
+// Ported from prototype/why.html. Hero and statement: the "Network" layout (components/layouts.tsx).
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
 import { SiteHeader, ClosingCards, SiteFooter } from "@/components/site";
+import { ArrowIcon } from "@/components/icons";
+import { GiantHero } from "@/components/layouts";
 
 export const metadata: Metadata = {
   title: "Why",
@@ -15,14 +17,15 @@ export default function Page() {
       <SiteHeader current="why" />
       <main>
           <div className="wrap">
-            <section className="page-hero">
-              <p className="mono soft">Why</p>
-              <h1 className="display">A public wallet tells everyone your plan</h1>
-              <p className="lead">Every trade on Robinhood Chain is public once it lands, and tied to the wallet that made it. Here is what that history gives away, who reads it, and what changes when your trades are routed.</p>
-            </section>
+            <GiantHero
+              kicker="Why"
+              lines={["A public wallet", "tells everyone", "your plan."]}
+              lead="Every trade on Robinhood Chain is public once it lands, and tied to the wallet that made it. Here is what that history gives away, who reads it, and what changes when your trades are routed."
+              action={<a className="button outline down" href="#shows">What it shows <ArrowIcon /></a>}
+            />
           </div>
 
-          <section className="steps-scene" data-scroll-steps data-active="0">
+          <section className="steps-scene" id="shows" data-scroll-steps data-active="0">
             <div className="pin">
               <div className="wrap">
                 <div className="stage views" aria-hidden="true">
@@ -113,9 +116,9 @@ export default function Page() {
           </section>
 
           <div className="wrap">
-            <section className="kicker-row">
+            <section className="center-statement">
               <p className="mono">With Nuluvium</p>
-              <p>The trades still happen in public. They just stop adding up to you.</p>
+              <h2>The trades still happen in public. They just stop adding up to you.</h2>
             </section>
 
             <section className="split sealed-compare">

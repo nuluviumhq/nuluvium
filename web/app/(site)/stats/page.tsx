@@ -1,7 +1,9 @@
+// Stats: Library hero and live ticker (components/layouts.tsx); the figures below are StatsBoard.
 import type { Metadata } from "next";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
 import { SiteFooter, SiteHeader } from "@/components/site";
 import { StatsBoard } from "@/components/StatsBoard";
+import { LiveTicker } from "@/components/layoutsClient";
 
 export const metadata: Metadata = {
   title: "Stats",
@@ -14,12 +16,15 @@ export default function Page() {
       <SiteHeader />
       <main>
         <div className="wrap">
-          <section className="page-hero">
-            <p className="mono soft">Stats</p>
-            <h1 className="display">Totals, never people</h1>
-            <p className="lead">How big the crowd is, how much is shielded and how much has been routed. Counted from public data, over everyone at once.</p>
+          <section className="library-hero">
+            <div className="inner">
+              <p className="mono">Stats · live from testnet</p>
+              <h1>Totals, never people.</h1>
+              <p className="lead">How big the crowd is, how much is shielded and how much has been routed. Counted from public data, over everyone at once.</p>
+            </div>
+            <LiveTicker label="Now" facts={[["Relayer fee", "0.10 USDG a piece"], ["Refreshed", "Every 10 minutes"]]} />
           </section>
-          <div style={{ paddingBottom: "6rem" }}>
+          <div style={{ padding: "4.5rem 0 6rem" }}>
             <StatsBoard />
           </div>
         </div>

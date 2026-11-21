@@ -1,9 +1,11 @@
-// Ported from prototype/for-agents.html.
+// Ported from prototype/for-agents.html. Layout "Network": giant hero, checkerboard tiles,
+// big two-column rows (components/layouts.tsx).
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteBehaviour } from "@/components/SiteBehaviour";
 import { SiteHeader, ClosingCards, SiteFooter } from "@/components/site";
 import { MCP_EXAMPLE } from "@/lib/mcpExample";
+import { BigRow, GiantHero, TileBoard } from "@/components/layouts";
 
 export const metadata: Metadata = {
   title: "Agents",
@@ -16,57 +18,33 @@ export default function Page() {
       <SiteHeader current="agents" />
       <main>
           <div className="wrap">
-            <section className="page-hero">
-              <p className="mono soft">Agents · live on testnet</p>
-              <h1 className="display">Your agent&#39;s strategy, kept to itself</h1>
-              <p className="lead">An agent that trades from one wallet publishes its rules one trade at a time. Through Nuluvium, one tool call routes each order through fresh addresses, split and spread over time.</p>
-            </section>
-          </div>
+            <GiantHero
+              kicker="Agents · live on testnet"
+              lines={["Your agent’s", "strategy, kept", "to itself."]}
+              lead="An agent that trades from one wallet publishes its rules one trade at a time. Through Nuluvium, one tool call routes each order through fresh addresses, split and spread over time."
+              action={<Link className="button outline" href="/app/agents">Set up an agent</Link>}
+            />
 
-          <section className="steps-scene" data-scroll-steps data-active="0">
-            <div className="pin">
-              <div className="wrap">
-                <div className="stage views" aria-hidden="true">
-                  <div className="view">
-                    <p className="stage-label">The agent&#39;s own secret · on its machine</p>
-                    <div className="sheet">
-                      <div className="form-rows">
-                        <div><span className="name"><span className="n">01</span>Secret</span><span className="value">Its own 12 words</span></div>
-                        <div><span className="name"><span className="n">02</span>Kept</span><span className="value">On the agent&#39;s machine</span></div>
-                        <div><span className="name"><span className="n">03</span>Spends from</span><span className="value">Its shielded balance</span></div>
-                      </div>
-                    </div>
-                    <div className="chips"><span className="chip-dot mine-filled">Never sent to Nuluvium</span><span className="chip-dot">Runs locally</span></div>
-                  </div>
-                  <div className="view">
-                    <p className="stage-label">MCP configuration · Claude Code, .mcp.json</p>
-                    <pre className="code sheet wide"><code>{MCP_EXAMPLE}</code></pre>
-                    <div className="chips"><span className="chip-dot mine-filled">Claude</span><span className="chip-dot mine-filled">Codex</span><span className="chip-dot mine-filled">Cursor</span><span className="chip-dot">Any MCP client</span></div>
-                  </div>
-                  <div className="view">
-                    <p className="stage-label">One tool call · route_order</p>
-                    <div className="tiles three"><span className="tile mine-filled" style={{ backgroundPosition: "32% 34%" }}></span><span className="tile"></span><span className="tile mine-filled" style={{ backgroundPosition: "34% 50%" }}></span><span className="tile"></span><span className="tile mine-filled" style={{ backgroundPosition: "36% 36%" }}></span><span className="tile mine-filled" style={{ backgroundPosition: "37% 59%" }}></span><span className="tile"></span><span className="tile mine-filled" style={{ backgroundPosition: "39% 45%" }}></span><span className="tile"></span></div>
-                    <div className="chips"><span className="chip-dot mine-filled">5 pieces · 5 fresh addresses</span><span className="chip-dot mine-sealed">Not linked to the agent</span></div>
-                  </div>
-                </div>
-                <div className="step-list">
-                  <p className="intro-line">Connect an agent in three steps:</p>
-                  <article className="step active">
-                    <button type="button"><span className="n">01</span><span className="t">Give the agent its own secret</span></button>
-                    <div className="body"><div><p>Twelve words that only the agent&#39;s machine knows. They make its shielded balance and a fresh address for every piece. Nuluvium never sees them, and the agent never holds your wallet.</p></div></div>
-                  </article>
-                  <article className="step">
-                    <button type="button"><span className="n">02</span><span className="t">Add the MCP server</span></button>
-                    <div className="body"><div><p>One block of configuration. The server runs on the agent&#39;s machine and works with Claude, Codex, Cursor or any other MCP client.</p></div></div>
-                  </article>
-                  <article className="step">
-                    <button type="button"><span className="n">03</span><span className="t">Ask in plain words</span></button>
-                    <div className="body"><div><p>"Buy 500 USDG of NVDA in five pieces over the next two hours." The agent calls one tool; the server plans the pieces and sends each one through the relayer.</p></div></div>
-                  </article>
-                </div>
-              </div>
+            {/* One tile per MCP client the docs cover; all lead to the same setup in Docs > Agents. */}
+            <TileBoard tiles={[
+              { label: "Claude", href: "/docs/agents" }, null, { label: "Codex", href: "/docs/agents" }, { art: "/art/owl-duo.webp" },
+              { art: "/art/couriers-duo.webp" }, { label: "Cursor", href: "/docs/agents" }, { label: "Any MCP client", href: "/docs/agents" }, null,
+            ]} />
+
+            <div className="big-rows">
+              <p className="mono soft">Connect an agent in three steps</p>
+              <BigRow label="Give the agent its own secret">
+                <p>Twelve words that only the agent&#39;s machine knows. They make its shielded balance and a fresh address for every piece. Nuluvium never sees them, and the agent never holds your wallet.</p>
+              </BigRow>
+              <BigRow label="Add the MCP server">
+                <p>One block of configuration. The server runs on the agent&#39;s machine and works with Claude, Codex, Cursor or any other MCP client.</p>
+                <pre className="code tinted"><code>{MCP_EXAMPLE}</code></pre>
+              </BigRow>
+              <BigRow label="Ask in plain words">
+                <p>&quot;Buy 500 USDG of NVDA in five pieces over the next two hours.&quot; The agent calls one tool; the server plans the pieces and sends each one through the relayer.</p>
+              </BigRow>
             </div>
-          </section>
+          </div>
 
           <div className="wrap">
             <section className="kicker-row">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DocSection, DocsPage } from "@/components/docs";
+import { CompareCard, Footnote } from "@/components/layouts";
 
 export const metadata: Metadata = {
   title: "How it works · Docs",
@@ -22,15 +23,20 @@ export default function Page() {
       <DocSection n={4} title="Route">
         <p>The relayer sends the proof to the Nuluvium Router in one transaction. The pool releases the piece&#39;s USDG, the Router swaps it on a public Uniswap v3 pool, and the stock tokens go straight to the fresh address. The order is signed by the fresh address, so the relayer cannot change it. The relayer pays the gas and takes its fee in USDG.</p>
       </DocSection>
-      <DocSection n={5} title="What a reader of the chain sees">
-        <ul>
-          <li>A deposit into the pool from your wallet.</li>
-          <li>Swaps from many fresh addresses, all sent by the same relayer, at different times and sizes.</li>
-          <li>Not which deposit paid for which swap, and not that the swaps belong to one order.</li>
-        </ul>
-      </DocSection>
-      <DocSection n={6} title="What stays on your device">
-        <p>Your keys, your notes, the fresh addresses and the order schedule. To find your notes, the app reads every pool event and picks out yours in the browser, so the services it calls do not learn which deposits are yours. The relayer sees one piece at a time, with no link to the others; its logs are off.</p>
+      <DocSection n={5} title="What the chain shows, and what stays with you">
+        <CompareCard sides={[
+          { numeral: "I", title: "On the chain", text: "What any reader of the chain sees.", rows: [
+            ["Your wallet", "One deposit into the pool"],
+            ["The pieces", "Swaps from many fresh addresses, all sent by the same relayer, at different times and sizes"],
+            ["Not shown", "Which deposit paid for which swap, or that the swaps belong to one order"],
+          ] },
+          { numeral: "II", title: "On your device", text: "What never leaves your device.", rows: [
+            ["Keys and notes", "Made and kept in your browser"],
+            ["Fresh addresses", "Made from your keys"],
+            ["Order schedule", "In your browser, encrypted with your keys"],
+          ] },
+        ]} />
+        <Footnote>To find your notes, the app reads every pool event and picks out yours in the browser, so the services it calls do not learn which deposits are yours. The relayer sees one piece at a time, with no link to the others; its logs are off.</Footnote>
       </DocSection>
     </DocsPage>
   );

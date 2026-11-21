@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <DocsPage slug="getting-started" lead="From a wallet to a shielded balance you can trade from, in about five minutes.">
+    <DocsPage slug="getting-started" variant="roman" lead="From a wallet to a shielded balance you can trade from, in about five minutes.">
       <DocSection n={1} title="What you need">
         <ul>
           <li>An email address, or a browser wallet such as MetaMask or Rabby.</li>

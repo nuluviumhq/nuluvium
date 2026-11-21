@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <DocsPage slug="orders" lead="One order, split into pieces and spread over time, each piece from its own fresh address.">
+    <DocsPage slug="orders" variant="timeline" lead="One order, split into pieces and spread over time, each piece from its own fresh address.">
       <DocSection n={1} title="Choose the order">
         <p>On Trade, pick the token, the amount in tUSDG, the number of pieces (3, 5 or 8) and the time window (10 minutes, 30 minutes, 2 hours or 6 hours). The form shows about what you receive and the relayer fee for all pieces before you route.</p>
         <p>On the testnet the only token is MSTK, a mock stock at a fixed price of 180 tUSDG.</p>
