@@ -65,11 +65,11 @@ see their own audits in the submodule.
 
 ## Keys and what they can do
 
-Testnet. All are single keys today; before mainnet the owner roles move to a Safe multisig.
+Testnet. Since 2026-11-21 the owner roles are held by a Safe 2-of-2; the other roles are single keys.
 
 | Key | Holds | Can | Cannot |
 |---|---|---|---|
-| Deployer `0xbdED…170b` (plain wallet) | Router owner; Privacy Pools Entrypoint `OWNER_ROLE` | Allow or remove stock tokens on the Router; pause Router swaps; upgrade the Entrypoint (UUPS proxy); wind down the pool (stops new deposits); change the postman; withdraw Entrypoint fees (vetting fee is 0) | Move anyone's deposit or tokens; change a signed order; stop `ragequit` (on the pool contract, not upgradeable); spend a note without its secrets |
+| Safe 2-of-2 `0xDe29…fCB5` (SafeL2 1.4.1; the deployer `0xbdED…170b` held these roles until 2026-11-21) | Router owner; Privacy Pools Entrypoint `OWNER_ROLE` | Allow or remove stock tokens on the Router; pause Router swaps; upgrade the Entrypoint (UUPS proxy); wind down the pool (stops new deposits); change the postman; withdraw Entrypoint fees (vetting fee is 0) | Move anyone's deposit or tokens; change a signed order; stop `ragequit` (on the pool contract, not upgradeable); spend a note without its secrets |
 | Postman `0xD40C…3E32` (ASP Worker secret) | Entrypoint `ASP_POSTMAN` | Post approved-set roots: approve, refuse, or drop a deposit from the set | Spend or move funds. A deposit left out of the set cannot be traded privately, but can still be taken back |
 | Relayer `0x7a7A…c72F` (relayer Worker secret) | Sends Router transactions, receives the fee | Refuse or delay pieces and sells (censorship, downtime) | Change an order, raise the fee above the signed cap, or see more than the piece it sends. There is one relayer today; a second one is planned |
 | Faucet `0x03E4…c114` (faucet Worker secret) | Sends test ETH and mints test USDG (the mock token's mint is open to anyone) | Send a little testnet ETH and mint test USDG to wallets that ask, within daily limits | Touch the pool, the Router, notes or anything on mainnet; it holds only a little testnet ETH |
@@ -80,7 +80,7 @@ tokens already on a fresh address stay under that address's key.
 
 ## Known gaps
 
-- Router owner and Entrypoint owner are one plain wallet (testnet). Mainnet: Safe multisig.
+- Router owner and Entrypoint owner: a Safe 2-of-2 on testnet since 2026-11-21; the deployer holds neither role. Mainnet: the same setup.
 - One relayer: it can censor or go down. Mainnet: a second relayer.
 - Minimum output for buys uses the mock's fixed price on testnet; mainnet needs a Uniswap quote.
 - The web app has no UI tests; its tests cover pure logic (country check, chain reads, RPC policy).

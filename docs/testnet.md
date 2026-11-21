@@ -300,3 +300,17 @@ and [100 tUSDG](https://explorer.testnet.chain.robinhood.com/tx/0x69e0f45eaa33c6
 a second request for it got 429; another Origin 403; a malformed address 400. The app's Overview
 has a Get test funds button in place of the old Get 100 test USDG (which needed gas of its own).
 
+## Owner roles to a Safe (2026-11-21)
+
+Safe 2-of-2 [0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5](https://explorer.testnet.chain.robinhood.com/address/0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5)
+(SafeL2 1.4.1 from the canonical SafeProxyFactory, standard fallback handler), visible in app.safe.global
+under Robinhood Testnet.
+
+1. [Safe created](https://explorer.testnet.chain.robinhood.com/tx/0x60cef138f1c6d6e2c1089b502ce01b4591c24e51586dc896fdbc53743b224ff4) (paid by the deployer).
+2. [Router.transferOwnership(Safe)](https://explorer.testnet.chain.robinhood.com/tx/0x83a97a27a102f0923329adfe371f277edb2df844944be2eafe32ce6de3273901) (Ownable2Step, pending).
+3. [Entrypoint.grantRole(OWNER_ROLE, Safe)](https://explorer.testnet.chain.robinhood.com/tx/0xd2c92c2116b3043c7bc8d5ed2c328186d12075857c361a7c283426118c5b9f66).
+4. [Safe batch](https://explorer.testnet.chain.robinhood.com/tx/0xf13b9f002fcdb3532a618e2ebbd1f67a2538a2176005dc602f4a1c54660e55d3) (MultiSendCallOnly 1.4.1, both signers): Router.acceptOwnership + Entrypoint.revokeRole(OWNER_ROLE, deployer).
+
+Checked on chain after step 4: Router owner = Safe, no pending owner; Safe holds OWNER_ROLE, the
+deployer does not; a pause() from the deployer reverts (OwnableUnauthorizedAccount); Safe nonce 1.
+Admin actions (token allowlist, pause, pool wind-down, Entrypoint upgrade) now need both signatures.

@@ -112,8 +112,9 @@ From a clone of this repository, the root `.mcp.json` runs the server from sourc
 
 Testnet build complete: shielded pool, approved-set provider, Router, relayer, SDK, MCP server and
 web app, each checked end to end on Robinhood Chain testnet ([docs/testnet.md](docs/testnet.md)).
-Before mainnet: an independent audit, a legal opinion, real stock tokens priced from Uniswap
-quotes, and the Router owned by a multisig. Deposits are capped until the audit is published.
+The owner roles (Router owner, Entrypoint `OWNER_ROLE`) are held by a Safe 2-of-2
+([docs/review.md](docs/review.md)). Before mainnet: an independent audit, real stock tokens priced
+from Uniswap quotes, and a second relayer. Deposits are capped until the audit is published.
 
 ## Security
 
