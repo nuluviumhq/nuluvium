@@ -14,7 +14,13 @@ export interface NetworkConfig {
   /** L2 block of the pool deployment; log scans start here. */
   deployBlock: bigint;
   router: Address;
-  relayerUrl: string;
+  /**
+   * Uniswap QuoterV2 used for minimum outputs (quoteExactInputSingle at the Router's fee tier).
+   * Testnet: a stand-in that quotes the fixed-price mock swap router (docs/testnet.md).
+   */
+  quoter: Address;
+  /** Relayers, tried in random order; a relayer that is down or refuses is skipped for a while. */
+  relayerUrls: string[];
   aspUrl: string;
 }
 
@@ -29,6 +35,7 @@ export const ROBINHOOD_TESTNET: NetworkConfig = {
   scope: 20883339666151915200592145183006062909365231028523521475069391119255857699183n,
   deployBlock: 153_603_397n,
   router: "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
-  relayerUrl: "https://relayer.nuluvium.com",
+  quoter: "0x42093B3DAb22760EF67849984A81084E564f728e",
+  relayerUrls: ["https://relayer.nuluvium.com", "https://relayer2.nuluvium.com"],
   aspUrl: "https://asp.nuluvium.com",
 };

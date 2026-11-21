@@ -4,6 +4,11 @@
 //                 simulates Router.relayAndSwap, sends it from the relayer key, waits for the receipt
 //   POST /sell    { order, orderSignature, permit, fee }
 //                 a fresh address sells stock tokens for USDG: Router.swap, fee out of the USDG
+//   cron           checks the gas float; below ALERT_BALANCE_WEI, a Telegram message to the operator
+//
+// Every order's minimum output is checked against this relayer's own QuoterV2 quote (bound.js).
+// Several relayers run this same code with their own key and float (wrangler.jsonc, env "second");
+// clients fail over between them.
 //
 // Privacy: nothing is stored and request bodies are never logged. The relayer sees one piece at a
 // time; it cannot tell which pieces belong to the same order. Logs are off in wrangler.jsonc.
@@ -12,6 +17,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { createPublicClient, createWalletClient, defineChain, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { alertDue, floatAlert } from "./alert.js";
+import { checkMinimum } from "./bound.js";
 import { quoteFee } from "./fee.js";
 import { BadRequest, MAX_BODY_BYTES, parsePiece, parseSell } from "./parse.js";
 
@@ -23,6 +30,7 @@ const routerAbi = parseAbi([
   "function relayAndSwap(Withdrawal withdrawal, WithdrawProof proof, uint256 scope, Order order, bytes orderSignature, PermitSignature permit, uint256 fee) returns (uint256)",
   "function swap(Order order, bytes orderSignature, PermitSignature permit, uint256 fee) returns (uint256)",
   "function USDG() view returns (address)",
+  "function poolFee(address token) view returns (uint24)",
   "error OrderExpired()",
   "error NonceAlreadyUsed()",
   "error InvalidSignature()",
@@ -33,6 +41,11 @@ const routerAbi = parseAbi([
   "error WithdrawalRecipientIsNotOrderOwner()",
   "error RelayAndSwapOnlyBuys()",
   "error EnforcedPause()",
+]);
+
+const quoterAbi = parseAbi([
+  "struct QuoteExactInputSingleParams { address tokenIn; address tokenOut; uint256 amountIn; uint24 fee; uint160 sqrtPriceLimitX96; }",
+  "function quoteExactInputSingle(QuoteExactInputSingleParams params) returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)",
 ]);
 
 const rpcUrl = (env) => env.PRIVATE_RPC_URL || env.RPC_URL;
@@ -74,6 +87,12 @@ export class RelayQueue extends DurableObject {
 
   async fetch(request) {
     const { pathname } = new URL(request.url);
+    // Cron only: whether an alert is due, and remembering that one went out. Holds one timestamp.
+    if (pathname === "/alert-due") {
+      const due = alertDue(await this.ctx.storage.get("alertSentAt"), Date.now(), Number(this.env.ALERT_EVERY_HOURS));
+      if (due) await this.ctx.storage.put("alertSentAt", Date.now());
+      return json({ due });
+    }
     const body = await request.json();
     // Chain every send after the previous one, so each uses the next nonce.
     const run = this.tail.then(() => (pathname === "/sell" ? sendSell(this.env, body) : sendPiece(this.env, parsePiece(body))));
@@ -86,8 +105,32 @@ export class RelayQueue extends DurableObject {
   }
 }
 
-/** Checks the gas float and the fee, simulates `functionName` on the Router, sends it, waits. */
-async function sendToRouter(env, functionName, args, fee) {
+/**
+ * Quotes the order's swap on QuoterV2 at the Router's tier and refuses a minimum output too far
+ * below it. No quote (token not listed, no pool, quoter down) means no piece: fails closed.
+ */
+async function checkPriceProtection(env, publicClient, order, fee, isBuy) {
+  const stock = isBuy ? order.tokenOut : order.tokenIn;
+  let quoted;
+  try {
+    const tier = await publicClient.readContract({ address: env.ROUTER, abi: routerAbi, functionName: "poolFee", args: [stock] });
+    if (tier === 0) throw new Error("not listed");
+    const amountIn = isBuy ? order.amountIn - fee : order.amountIn;
+    const { result } = await publicClient.simulateContract({
+      address: env.QUOTER,
+      abi: quoterAbi,
+      functionName: "quoteExactInputSingle",
+      args: [{ tokenIn: order.tokenIn, tokenOut: order.tokenOut, amountIn, fee: tier, sqrtPriceLimitX96: 0n }],
+    });
+    quoted = result[0];
+  } catch {
+    throw new BadRequest("no price quote for this token right now; not sent");
+  }
+  checkMinimum({ isBuy, minAmountOut: order.minAmountOut, maxFee: order.maxFee, quoted, maxSlippageBps: BigInt(env.MAX_SLIPPAGE_BPS) });
+}
+
+/** Checks the gas float, the fee and the price limit, simulates `functionName`, sends it, waits. */
+async function sendToRouter(env, functionName, args, order, fee) {
   const { account, publicClient, walletClient } = clientsFor(env);
 
   const balance = await publicClient.getBalance({ address: account.address });
@@ -95,6 +138,7 @@ async function sendToRouter(env, functionName, args, fee) {
 
   const { fee: minimumFee } = await currentQuote(env, publicClient);
   if (fee < minimumFee) throw new BadRequest(`fee below the current quote (${minimumFee})`);
+  await checkPriceProtection(env, publicClient, order, fee, functionName === "relayAndSwap");
 
   // Simulate first: a transaction that would revert costs the relayer nothing.
   const { request } = await publicClient.simulateContract({ account, address: env.ROUTER, abi: routerAbi, functionName, args });
@@ -108,7 +152,7 @@ async function sendSell(env, body) {
   const { publicClient } = clientsFor(env);
   const usdg = await publicClient.readContract({ address: env.ROUTER, abi: routerAbi, functionName: "USDG" });
   const sell = parseSell(body, usdg);
-  return sendToRouter(env, "swap", [sell.order, sell.orderSignature, sell.permit, sell.fee], sell.fee);
+  return sendToRouter(env, "swap", [sell.order, sell.orderSignature, sell.permit, sell.fee], sell.order, sell.fee);
 }
 
 function sendPiece(env, piece) {
@@ -116,8 +160,35 @@ function sendPiece(env, piece) {
     env,
     "relayAndSwap",
     [piece.withdrawal, piece.proof, piece.scope, piece.order, piece.orderSignature, piece.permit, piece.fee],
+    piece.order,
     piece.fee,
   );
+}
+
+/* ------------------------------------------------------------------ gas float alert (cron) */
+
+async function checkFloat(env) {
+  const { account, publicClient } = clientsFor(env);
+  const [balance, gasPrice] = await Promise.all([publicClient.getBalance({ address: account.address }), publicClient.getGasPrice()]);
+  const text = floatAlert({
+    name: env.RELAYER_NAME,
+    address: account.address,
+    balance,
+    alertBelow: BigInt(env.ALERT_BALANCE_WEI),
+    refuseBelow: BigInt(env.MINIMUM_BALANCE_WEI),
+    gasPerPiece: BigInt(env.GAS_PER_PIECE),
+    gasPrice,
+  });
+  // No alert channel set up: nothing to send to (the float is also on the stats page).
+  if (!text || !env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return;
+  const queue = env.RELAY_QUEUE.get(env.RELAY_QUEUE.idFromName("relayer"));
+  const { due } = await (await queue.fetch("https://queue/alert-due", { method: "POST" })).json();
+  if (!due) return;
+  await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text }),
+  });
 }
 
 /* ------------------------------------------------------------------ HTTP */
@@ -129,6 +200,10 @@ const json = (body, status = 200) =>
   });
 
 export default {
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(checkFloat(env).catch(() => {})); // logs are off; a failed check runs again next time
+  },
+
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
 
@@ -139,6 +214,7 @@ export default {
         chainId: Number(env.CHAIN_ID),
         router: env.ROUTER,
         relayer: account.address, // put this as feeRecipient in the withdrawal; relay fee 0
+        name: env.RELAYER_NAME,
         fee: fee.toString(),
         gasCost: gasCost.toString(),
         feeAsset: "USDG (6 decimals)",

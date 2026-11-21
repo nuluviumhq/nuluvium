@@ -15,6 +15,7 @@ import {
   keysFromMnemonic,
   planPieces,
   publicClientFor,
+  quotedBuy,
   runPlan,
   type RoutingEvent,
 } from "../sdk/src/index.ts";
@@ -82,11 +83,8 @@ const { results, remaining } = await runPlan(
   { config, keys, client, prover: createFolderProver(new URL("./artifacts", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")) },
   note,
   plan,
-  {
-    tokenOut: routerDeployment.mockStock,
-    // Fixed mock price on testnet; on mainnet this comes from a Uniswap quote. 1% slippage.
-    minAmountOut: (usdgIn) => ((usdgIn * 10n ** 18n) / price) * 99n / 100n,
-  },
+  // A fresh QuoterV2 quote per piece (testnet: the stand-in for the fixed-price mock), 1% slippage.
+  quotedBuy(client, config, routerDeployment.mockStock, 100),
   { onEvent },
 );
 

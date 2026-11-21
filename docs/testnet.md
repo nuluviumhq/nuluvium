@@ -334,3 +334,54 @@ under Robinhood Testnet.
 Checked on chain after step 4: Router owner = Safe, no pending owner; Safe holds OWNER_ROLE, the
 deployer does not; a pause() from the deployer reverts (OwnableUnauthorizedAccount); Safe nonce 1.
 Admin actions (token allowlist, pause, pool wind-down, Entrypoint upgrade) now need both signatures.
+
+## Quotes and a second relayer (phase A, 2026-11-21)
+
+**Quoter.** Testnet has no Uniswap, so minimum outputs come from
+[MockQuoterV2 0x42093B3DAb22760EF67849984A81084E564f728e](https://explorer.testnet.chain.robinhood.com/tx/0xb0ecb4d19a9c5b52b7196550aa68efc051cc56b65c924ad81347c56c2a3de3e8)
+(`contracts/script/DeployQuoterTestnet.s.sol`, deployer, no owner, no funds): it has the QuoterV2
+`quoteExactInputSingle` signature, prices from the mock swap router's fixed price and reverts when no
+pool exists at the tier. Checked: 18 tUSDG at 0.05% quotes 0.1 MSTK; unit test
+`test_mockQuoterMatchesTheMockSwap` (the quote equals the swap's real output). Clients (SDK, MCP, web)
+and both relayers use the same call as on mainnet.
+
+**Relayer 2.** `darkpool-relayer-2-testnet` (wrangler env `second`, relayer2.nuluvium.com), key
+`0x21Ad9f184908b119694Bb0E3365eCa4Acc4155c0` (made locally, `.dev.vars` and its Worker secret only),
+[0.0008 ETH from the deployer](https://explorer.testnet.chain.robinhood.com/tx/0xec4896db0d482a8e6c1dbe29b584c7296d51044fc75fc842092ba14b1649a71a)
+(the deployer had 0.0014; top up from the faucet).
+
+**Run** (`testnet/relayer-check.ts`, both relayers on `wrangler dev` with the new code, against the
+live chain and Router):
+1. Both answer `/quote` (0.10 tUSDG each); six `getQuote` calls picked relayers 2 2 2 2 2 1.
+2. Price bound: a piece with a minimum 10% below the quote got **400** "more than 5% below the
+   current quote" before simulation; 1% below passed the bound (then 422 from the fake proof).
+3. Failover: relayer 1 (a proxy in front of it) quoted, so the proof names relayer 1 as
+   `feeRecipient` (relay fee 0), then answered 503 to the piece. The SDK sent the same proof and
+   signatures to relayer 2:
+   [3 tUSDG → 0.0161 MSTK](https://explorer.testnet.chain.robinhood.com/tx/0x7ced10d7af894679d4c25c9184e7fa3bd62934f370466e8623a68474841eea30),
+   sent from relayer 2, Router fee 0.10 to relayer 2. (A first run sent
+   [the same kind of piece](https://explorer.testnet.chain.robinhood.com/tx/0xcfb5d0d10c9a05188195507292e15f23da8ff366b5cb34938bcfb5eb0f7f4fc2)
+   but stopped on a typo in the script's event decoding.)
+4. Sell at a fresh quote (`sellAtQuote`): 0.0161 MSTK quoted 2.90 tUSDG,
+   [sold](https://explorer.testnet.chain.robinhood.com/tx/0xde892db0b9ed8247dd06934dbf6439b5ab1bec435616b619f53902302586b31a),
+   fee 0.10.
+
+**Gas float alert.** Each relayer's cron (every 30 minutes) reads its balance; below 0.0015 ETH it
+sends one Telegram message (at most every 12 hours, last time kept in the Durable Object). Only the
+relayer's own address, balance and how many pieces it can still send. Off until
+TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set as Worker secrets.
+
+**Listing.** `scripts/list-tokens.mjs` (local): on testnet MSTK is already on its only tier (0.05%),
+so no change; `--rehearse` writes a no-op `setPoolFee(MSTK, 500)` batch for the Safe, simulated
+"ok as the Safe" (and reverts as the deployer). Mainnet picks (most tokens for 1,000 USDG,
+2026-11-21): NVDA, SPY, QQQ, GOOGL, AAPL, GME, ANT, SPCX 0.05%; META, TSLA, AMZN, GLD, USO, CRCL, AMC,
+BABA, PLTR, MU 0.3%; MSTR, RDDT, TSM 1%.
+
+**MCP run** (`testnet/mcp-client.ts`, MCP server with `NULUVIUM_RELAYERS` = a dead URL + both local
+relayers): 6 USDG in 3 pieces over 3 minutes, all done first time, each at the quoted price
+(received = (piece − 0.10) / 180 exactly):
+[piece 0](https://explorer.testnet.chain.robinhood.com/tx/0xb110360891621d3bcce0dd7a75b3515198d24ccf76153868b725993e69acd29e) via relayer 1,
+[piece 1](https://explorer.testnet.chain.robinhood.com/tx/0x8c76ad94324340484161717bfefd9340b846d6826d1f6e28985e8f51adcf886b) and
+[piece 2](https://explorer.testnet.chain.robinhood.com/tx/0x96dec9f33fba864919db6625db5b5b4dfbbb99e1173742f76687c572dc3ffd75) via relayer 2;
+cancel and the non-listed-token refusal as before. The web app uses the same SDK calls (`quotedBuy`,
+`sellAtQuote`); not yet clicked through in a browser.

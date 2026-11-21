@@ -16,7 +16,7 @@ import { loadDeviceSecret, saveDeviceSecret } from "@/lib/deviceKeys";
 import { usePrivyState, type BridgeWallet } from "@/lib/privyState";
 import { OrderEngine } from "@/lib/engine";
 import { isOpen, type Order } from "@/lib/orders";
-import { TOKENS } from "@/lib/tokens";
+import { SLIPPAGE_BPS, TOKENS } from "@/lib/tokens";
 import { WalletError, depositToPool, explorerTx, setActiveProvider, shortAddress, unlockWithWallet, type Eip1193Provider, type WalletStep } from "@/lib/wallet";
 
 /** Beta caps enforced by the approved-set provider (asp/src/screen.js). */
@@ -348,7 +348,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       amount: amount.toString(),
       window: windowLabel,
       depositIndex: note.depositIndex.toString(),
-      slippageBps: 100,
+      slippageBps: SLIPPAGE_BPS,
       createdAt: Math.floor(Date.now() / 1000),
       pieces: plan.map((piece) => ({ number: piece.number, amount: piece.amount.toString(), at: piece.at, status: "scheduled" })),
     };

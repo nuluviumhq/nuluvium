@@ -6,6 +6,7 @@ import {
   executePiece,
   fetchApprovedSet,
   publicClientFor,
+  quotedBuy,
   recoverNotes,
   type Note,
   type RoutingContext,
@@ -120,10 +121,8 @@ export class Engine {
         const amount = BigInt(piece.amount);
         if (amount > note.value) throw new Error(`note holds ${note.value}, piece needs ${amount}`);
 
-        const { result } = await executePiece(this.ctx, note, number, amount, {
-          tokenOut: token.address,
-          minAmountOut: (usdgIn) => (token.expectedOut(usdgIn) * BigInt(10_000 - order.slippageBps)) / 10_000n,
-        });
+        const target = quotedBuy(this.ctx.client, this.ctx.config, token.address, order.slippageBps);
+        const { result } = await executePiece(this.ctx, note, number, amount, target);
         const receipt = await this.ctx.client.waitForTransactionReceipt({ hash: result.tx });
         const received = await this.ctx.client.readContract({
           address: token.address,

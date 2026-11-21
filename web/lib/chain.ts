@@ -145,7 +145,18 @@ export async function readRecentPieces(limit = 4): Promise<PublicPiece[]> {
   return found.slice(0, limit);
 }
 
-/** Relayer fee per piece right now, in tUSDG units. */
+/**
+ * Output of a swap at a fresh QuoterV2 quote on the Router's pool: tokens for `amountIn` tUSDG
+ * (buy), or tUSDG for `amountIn` tokens (sell). An eth_call through /api/rpc; nothing is sent.
+ */
+export async function quoteOut(direction: "buy" | "sell", token: `0x${string}`, amountIn: bigint): Promise<bigint> {
+  const { publicClientFor, quoteSwap } = await sdk();
+  const config = await browserConfig();
+  const client = publicClientFor(config);
+  return direction === "buy" ? quoteSwap(client, config, config.usdg, token, amountIn) : quoteSwap(client, config, token, config.usdg, amountIn);
+}
+
+/** Relayer fee per piece right now, in tUSDG units (from the first relayer that answers). */
 export async function readPieceFee(): Promise<bigint> {
   const { getQuote } = await sdk();
   return (await getQuote(await browserConfig())).fee;

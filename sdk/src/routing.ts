@@ -34,6 +34,8 @@ export interface PieceResult {
   fee: bigint;
   proofSeconds: number;
   gasUsed: string;
+  /** Relayer that sent it. */
+  relayerUrl: string;
   attempts: number;
   sentAt: number;
 }
@@ -97,9 +99,9 @@ export async function executePiece(
     signPermit(fresh, client, config, config.usdg, config.router, amount, deadline),
   ]);
 
-  const sent = await sendPiece(config, { withdrawal, proof: formatProof(proof), order, orderSignature, permit, fee: quote.fee });
+  const sent = await sendPiece(config, quote, { withdrawal, proof: formatProof(proof), order, orderSignature, permit });
   return {
-    result: { amount, tx: sent.tx, fresh: fresh.address, fee: quote.fee, proofSeconds: seconds, gasUsed: sent.gasUsed },
+    result: { amount, tx: sent.tx, fresh: fresh.address, fee: sent.fee, proofSeconds: seconds, gasUsed: sent.gasUsed, relayerUrl: sent.relayerUrl },
     next: noteAfterWithdrawal(keys, note, amount),
   };
 }

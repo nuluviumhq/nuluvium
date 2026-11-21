@@ -7,6 +7,8 @@ import type { NetworkConfig } from "./config.ts";
 import type { FormattedProof } from "./proof.ts";
 
 export interface Quote {
+  /** Relayer that gave the quote. */
+  url: string;
   router: Address;
   relayer: Address;
   fee: bigint;
@@ -33,13 +35,114 @@ export class RelayerError extends Error {
   }
 }
 
-export async function getQuote(config: NetworkConfig): Promise<Quote> {
-  const response = await fetch(`${config.relayerUrl}/quote`);
-  if (!response.ok) throw new RelayerError(response.status, "quote failed");
-  const body = (await response.json()) as { router: Address; relayer: Address; fee: string; gasCost: string };
-  if (body.router.toLowerCase() !== config.router.toLowerCase()) throw new Error("relayer uses a different Router");
-  return { router: body.router, relayer: body.relayer, fee: BigInt(body.fee), gasCost: BigInt(body.gasCost) };
+/* ------------------------------------------------------------------ several relayers */
+
+/** How long a relayer that failed is tried last (it is still tried if all others fail too). */
+const SKIP_AFTER_FAILURE_MS = 2 * 60_000;
+const QUOTE_TIMEOUT_MS = 8_000;
+/** A piece waits for its receipt on the relayer (up to 60 s), so the request gets longer. */
+const SEND_TIMEOUT_MS = 90_000;
+
+/** Relayer URL → time it last failed. Per process (MCP server) or per tab (web app). */
+const failedAt = new Map<string, number>();
+
+export function markRelayerFailed(url: string, now = Date.now()): void {
+  failedAt.set(url, now);
 }
+
+export function markRelayerOk(url: string): void {
+  failedAt.delete(url);
+}
+
+/**
+ * The order to try the relayers in: random (so no single relayer sees every piece of an order),
+ * with relayers that failed in the last two minutes moved to the end.
+ */
+export function relayerOrder(urls: string[], { now = Date.now(), random = Math.random } = {}): string[] {
+  const shuffled = [...urls];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  const recentlyFailed = (url: string) => now - (failedAt.get(url) ?? Number.NEGATIVE_INFINITY) < SKIP_AFTER_FAILURE_MS;
+  return [...shuffled.filter((url) => !recentlyFailed(url)), ...shuffled.filter(recentlyFailed)];
+}
+
+/** Fee quote from one relayer. Checks it sends to the same Router as `config`. */
+export async function quoteFrom(config: NetworkConfig, url: string): Promise<Quote> {
+  let response: Response;
+  try {
+    response = await fetch(`${url}/quote`, { signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS) });
+  } catch {
+    throw new RelayerError(0, `relayer ${url} did not answer`);
+  }
+  if (!response.ok) throw new RelayerError(response.status, `relayer ${url} quote failed`);
+  const body = (await response.json()) as { router: Address; relayer: Address; fee: string; gasCost: string };
+  if (body.router.toLowerCase() !== config.router.toLowerCase()) throw new RelayerError(0, `relayer ${url} uses a different Router`);
+  return { url, router: body.router, relayer: body.relayer, fee: BigInt(body.fee), gasCost: BigInt(body.gasCost) };
+}
+
+/** A quote from the first relayer that answers, in `relayerOrder`. */
+export async function getQuote(config: NetworkConfig): Promise<Quote> {
+  const reasons: string[] = [];
+  for (const url of relayerOrder(config.relayerUrls)) {
+    try {
+      const quote = await quoteFrom(config, url);
+      markRelayerOk(url);
+      return quote;
+    } catch (error) {
+      markRelayerFailed(url);
+      reasons.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  throw new RelayerError(0, `no relayer answered (${reasons.join("; ")})`);
+}
+
+interface Sent {
+  tx: Hex;
+  gasUsed: string;
+  /** Fee the relayer that sent it took (its own quote; never above the order's maxFee). */
+  fee: bigint;
+  relayerUrl: string;
+}
+
+/**
+ * Posts a signed piece or sell to `quote`'s relayer; if that one is down or refuses, to the others.
+ * The same signatures and proof work with any relayer: the withdrawal's relay fee is 0, and the
+ * Router pays its fee to whoever sends the transaction. Another relayer is asked for its own quote
+ * first (same Router, fee within the signed maxFee).
+ */
+async function postWithFailover(config: NetworkConfig, path: "/piece" | "/sell", body: Record<string, unknown>, quote: Quote, maxFee: bigint): Promise<Sent> {
+  const reasons: string[] = [];
+  const others = relayerOrder(config.relayerUrls.filter((url) => url !== quote.url));
+  for (const url of [quote.url, ...others]) {
+    try {
+      const fee = url === quote.url ? quote.fee : (await quoteFrom(config, url)).fee;
+      if (fee > maxFee) throw new RelayerError(0, `relayer ${url} fee is above the signed maximum`);
+      let response: Response;
+      try {
+        response = await fetch(`${url}${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...body, fee: fee.toString() }),
+          signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+        });
+      } catch {
+        throw new RelayerError(0, `relayer ${url} did not answer`);
+      }
+      const result = (await response.json().catch(() => ({}))) as { tx?: Hex; gasUsed?: string; error?: string };
+      if (!response.ok || !result.tx) throw new RelayerError(response.status, result.error ?? `relayer ${url} refused`);
+      markRelayerOk(url);
+      return { tx: result.tx, gasUsed: result.gasUsed ?? "", fee, relayerUrl: url };
+    } catch (error) {
+      markRelayerFailed(url);
+      reasons.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  throw new RelayerError(0, reasons.join("; "));
+}
+
+const stringFields = (order: Order) => Object.fromEntries(Object.entries(order).map(([key, value]) => [key, String(value)]));
 
 export function signOrder(account: HDAccount, config: NetworkConfig, order: Order): Promise<Hex> {
   return account.signTypedData({
@@ -93,53 +196,35 @@ export async function signPermit(
   return { deadline: deadline.toString(), v: v.toString(), r: signature.r, s: signature.s };
 }
 
-export async function sendPiece(
+/** Sends a signed piece (Router.relayAndSwap), failing over to another relayer if needed. */
+export function sendPiece(
   config: NetworkConfig,
+  quote: Quote,
   piece: {
     withdrawal: { processooor: Address; data: Hex };
     proof: FormattedProof;
     order: Order;
     orderSignature: Hex;
     permit: { deadline: string; v: string; r: Hex; s: Hex };
-    fee: bigint;
   },
-): Promise<{ tx: Hex; gasUsed: string }> {
+): Promise<Sent> {
   const body = {
     withdrawal: piece.withdrawal,
     proof: piece.proof,
     scope: config.scope.toString(),
-    order: Object.fromEntries(Object.entries(piece.order).map(([key, value]) => [key, String(value)])),
+    order: stringFields(piece.order),
     orderSignature: piece.orderSignature,
     permit: piece.permit,
-    fee: piece.fee.toString(),
   };
-  const response = await fetch(`${config.relayerUrl}/piece`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const result = (await response.json()) as { tx?: Hex; gasUsed?: string; error?: string };
-  if (!response.ok || !result.tx) throw new RelayerError(response.status, result.error ?? "relayer refused the piece");
-  return { tx: result.tx, gasUsed: result.gasUsed ?? "" };
+  return postWithFailover(config, "/piece", body, quote, piece.order.maxFee);
 }
 
 /** Sends a signed sell (stock token → USDG on the same fresh address) through Router.swap. */
-export async function sendSell(
+export function sendSell(
   config: NetworkConfig,
-  sell: { order: Order; orderSignature: Hex; permit: { deadline: string; v: string; r: Hex; s: Hex }; fee: bigint },
-): Promise<{ tx: Hex; gasUsed: string }> {
-  const body = {
-    order: Object.fromEntries(Object.entries(sell.order).map(([key, value]) => [key, String(value)])),
-    orderSignature: sell.orderSignature,
-    permit: sell.permit,
-    fee: sell.fee.toString(),
-  };
-  const response = await fetch(`${config.relayerUrl}/sell`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const result = (await response.json()) as { tx?: Hex; gasUsed?: string; error?: string };
-  if (!response.ok || !result.tx) throw new RelayerError(response.status, result.error ?? "relayer refused the sell");
-  return { tx: result.tx, gasUsed: result.gasUsed ?? "" };
+  quote: Quote,
+  sell: { order: Order; orderSignature: Hex; permit: { deadline: string; v: string; r: Hex; s: Hex } },
+): Promise<Sent> {
+  const body = { order: stringFields(sell.order), orderSignature: sell.orderSignature, permit: sell.permit };
+  return postWithFailover(config, "/sell", body, quote, sell.order.maxFee);
 }

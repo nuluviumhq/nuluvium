@@ -8,13 +8,12 @@
 import type { UserKeys } from "@nuluvium/sdk";
 import { parseAbi, toHex } from "viem";
 import { browserConfig, sdk } from "./chain";
-import { TOKENS, type TradableToken } from "./tokens";
+import { SLIPPAGE_BPS, TOKENS, type TradableToken } from "./tokens";
 import { ensureTestnet, walletClient } from "./wallet";
 
 /** Multicall3 at its usual address (present on Robinhood Chain testnet, docs/testnet.md). */
 const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11";
 const balanceAbi = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
-const SELL_SLIPPAGE_BPS = 100n; // 1%, as for buys
 
 export interface Holding {
   depositIndex: bigint;
@@ -61,27 +60,27 @@ export async function readHoldings(keys: UserKeys): Promise<{ holdings: Holding[
   return { holdings: held, empty: holdings.length - held.length };
 }
 
-/** tUSDG units a sale of `amount` brings at the mock price, before the relayer fee. */
-export const saleValue = (token: TradableToken, amount: bigint) => (amount * token.mockPrice) / 10n ** BigInt(token.decimals);
-
 /**
  * Sells everything `holding` holds of `token` for tUSDG, which stays on the same fresh address.
  * The relayer pays the gas and takes its fee from the tUSDG.
  */
 export async function sellHolding(keys: UserKeys, holding: Holding, token: TradableToken): Promise<{ tx: `0x${string}`; fee: bigint }> {
-  const { freshAccount, getQuote, publicClientFor, sellFromFresh } = await sdk();
+  const { freshAccount, publicClientFor, sellAtQuote } = await sdk();
   const config = await browserConfig();
   const client = publicClientFor(config);
   const fresh = freshAccount(keys, holding.depositIndex, holding.piece);
   const amount = await client.readContract({ address: token.address, abi: balanceAbi, functionName: "balanceOf", args: [fresh.address] });
   if (amount === 0n) throw new Error("This address holds none of that token any more.");
 
-  const { fee } = await getQuote(config);
-  const value = saleValue(token, amount);
-  // The Router accepts the order up to twice the quoted fee, so the minimum leaves room for that.
-  const minimum = (value * (10_000n - SELL_SLIPPAGE_BPS)) / 10_000n - fee * 2n;
-  if (minimum <= 0n) throw new Error("This holding is worth less than the relayer fee, so it cannot be sold through the relayer.");
-  return sellFromFresh(client, config, fresh, token.address, amount, minimum);
+  // Minimum: a fresh quote less 1%, less room for the fee (the Router accepts up to twice the quote).
+  try {
+    return await sellAtQuote(client, config, fresh, token.address, amount, SLIPPAGE_BPS);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("worth less than the relayer fee")) {
+      throw new Error("This holding is worth less than the relayer fee, so it cannot be sold through the relayer.");
+    }
+    throw error;
+  }
 }
 
 /** Private key of one fresh address, as 0x hex, for importing into a wallet. */

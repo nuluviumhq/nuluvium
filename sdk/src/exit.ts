@@ -9,7 +9,8 @@ import type { PrivacyPoolSDK, Secret } from "@0xbow/privacy-pools-core-sdk";
 import { parseAbi, type Address, type ContractFunctionArgs, type HDAccount, type Hex, type PublicClient, type WalletClient } from "viem";
 import type { NetworkConfig } from "./config.ts";
 import type { Note } from "./notes.ts";
-import { getQuote, sendSell, signOrder, signPermit, type Order } from "./relayer.ts";
+import { quotedSellMinimum } from "./quote.ts";
+import { getQuote, sendSell, signOrder, signPermit, type Order, type Quote } from "./relayer.ts";
 import { randomNonce } from "./routing.ts";
 
 // JSON form: abitype cannot type the nested fixed array (uint256[2][2]) from the human-readable form.
@@ -103,7 +104,37 @@ export async function sellFromFresh(
   minUsdgOut: bigint,
 ): Promise<{ tx: Hex; fee: bigint }> {
   if (amountIn <= 0n) throw new Error("nothing to sell");
+  return signAndSendSell(client, config, fresh, token, amountIn, minUsdgOut, await getQuote(config));
+}
+
+/**
+ * Sells `amountIn` of `token` at a fresh Uniswap quote less `slippageBps` (and less room for the
+ * relayer fee). Refuses when the holding is worth less than that fee.
+ */
+export async function sellAtQuote(
+  client: PublicClient,
+  config: NetworkConfig,
+  fresh: HDAccount,
+  token: Address,
+  amountIn: bigint,
+  slippageBps: number,
+): Promise<{ tx: Hex; fee: bigint; quoted: bigint }> {
+  if (amountIn <= 0n) throw new Error("nothing to sell");
   const quote = await getQuote(config);
+  const { quoted, minimum } = await quotedSellMinimum(client, config, token, amountIn, quote.fee, slippageBps);
+  if (minimum <= 0n) throw new Error("holding is worth less than the relayer fee");
+  return { ...(await signAndSendSell(client, config, fresh, token, amountIn, minimum, quote)), quoted };
+}
+
+async function signAndSendSell(
+  client: PublicClient,
+  config: NetworkConfig,
+  fresh: HDAccount,
+  token: Address,
+  amountIn: bigint,
+  minUsdgOut: bigint,
+  quote: Quote,
+): Promise<{ tx: Hex; fee: bigint }> {
   const deadline = BigInt(Math.floor(Date.now() / 1000) + SELL_DEADLINE_SECONDS);
   const order: Order = {
     owner: fresh.address,
@@ -119,6 +150,6 @@ export async function sellFromFresh(
     signOrder(fresh, config, order),
     signPermit(fresh, client, config, token, config.router, amountIn, deadline),
   ]);
-  const sent = await sendSell(config, { order, orderSignature, permit, fee: quote.fee });
-  return { tx: sent.tx, fee: quote.fee };
+  const sent = await sendSell(config, quote, { order, orderSignature, permit });
+  return { tx: sent.tx, fee: sent.fee };
 }

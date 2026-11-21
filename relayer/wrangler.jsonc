@@ -1,4 +1,10 @@
-// Nuluvium relayer, Robinhood Chain TESTNET. Secrets (not in this file): RELAYER_KEY, PRIVATE_RPC_URL.
+// Nuluvium relayers, Robinhood Chain TESTNET. Two Workers run this same code, each with its own key
+// and gas float, so one can be down or refuse without stopping pieces (clients fail over):
+//   relayer 1: darkpool-relayer-testnet   (top level)     npx -y wrangler@4 deploy
+//   relayer 2: darkpool-relayer-2-testnet (env "second")  npx -y wrangler@4 deploy --env second
+// Secrets per Worker (not in this file): RELAYER_KEY, PRIVATE_RPC_URL; optional TELEGRAM_BOT_TOKEN
+// and TELEGRAM_CHAT_ID for the gas float alert.
+// Bindings, vars, routes and triggers are not inherited by an env, so "second" repeats them.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "darkpool-relayer-testnet",
@@ -14,16 +20,55 @@
     "bindings": [{ "name": "RELAY_QUEUE", "class_name": "RelayQueue" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RelayQueue"] }],
+  // Gas float check every 30 minutes (alert at most once per ALERT_EVERY_HOURS).
+  "triggers": { "crons": ["*/30 * * * *"] },
   "vars": {
+    "RELAYER_NAME": "relayer 1",
     "CHAIN_ID": "46630",
     "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
     "ROUTER": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
+    // QuoterV2 for the price-protection bound. Testnet: stand-in for the fixed-price mock router
+    // (contracts/deployments/46630-quoter.json). Mainnet: Uniswap QuoterV2.
+    "QUOTER": "0x42093B3DAb22760EF67849984A81084E564f728e",
+    // Refuse an order whose minimum output is more than 5% below this relayer's own quote.
+    "MAX_SLIPPAGE_BPS": "500",
     // Fee quote inputs. ETH price is fixed on testnet; mainnet reads it from Uniswap (later).
     "GAS_PER_PIECE": "900000",
     "ETH_USD_CENTS": "300000",
     "FEE_MARGIN_PERCENT": "120",
     "MINIMUM_FEE": "100000",
     // Refuse to send below 0.0005 ETH, so the float is topped up before it runs dry.
-    "MINIMUM_BALANCE_WEI": "500000000000000"
+    "MINIMUM_BALANCE_WEI": "500000000000000",
+    // Alert below 0.0015 ETH, at most once every 12 hours.
+    "ALERT_BALANCE_WEI": "1500000000000000",
+    "ALERT_EVERY_HOURS": "12"
+  },
+  "env": {
+    "second": {
+      "name": "darkpool-relayer-2-testnet",
+      "routes": [{ "pattern": "relayer2.nuluvium.com", "custom_domain": true }],
+      "workers_dev": false,
+      "observability": { "enabled": false },
+      "durable_objects": {
+        "bindings": [{ "name": "RELAY_QUEUE", "class_name": "RelayQueue" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RelayQueue"] }],
+      "triggers": { "crons": ["*/30 * * * *"] },
+      "vars": {
+        "RELAYER_NAME": "relayer 2",
+        "CHAIN_ID": "46630",
+        "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
+        "ROUTER": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
+        "QUOTER": "0x42093B3DAb22760EF67849984A81084E564f728e",
+        "MAX_SLIPPAGE_BPS": "500",
+        "GAS_PER_PIECE": "900000",
+        "ETH_USD_CENTS": "300000",
+        "FEE_MARGIN_PERCENT": "120",
+        "MINIMUM_FEE": "100000",
+        "MINIMUM_BALANCE_WEI": "500000000000000",
+        "ALERT_BALANCE_WEI": "1500000000000000",
+        "ALERT_EVERY_HOURS": "12"
+      }
+    }
   }
 }

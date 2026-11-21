@@ -94,3 +94,35 @@ contract MockEntrypoint {
     MintableToken(usdg).mint(data.recipient, proof.pubSignals[0]);
   }
 }
+
+/// QuoterV2 stand-in for the fixed-price MockSwapRouter, so clients and the relayer use the same
+/// quote path on testnet as on mainnet. Like the real quoter, it reverts when no pool exists for the
+/// pair and fee tier. Read with eth_call; nothing is stored.
+contract MockQuoterV2 {
+  struct QuoteExactInputSingleParams {
+    address tokenIn;
+    address tokenOut;
+    uint256 amountIn;
+    uint24 fee;
+    uint160 sqrtPriceLimitX96;
+  }
+
+  MockSwapRouter public immutable swapRouter;
+
+  error NoPool();
+
+  constructor(MockSwapRouter swapRouter_) {
+    swapRouter = swapRouter_;
+  }
+
+  function quoteExactInputSingle(QuoteExactInputSingleParams memory params)
+    external
+    view
+    returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)
+  {
+    if (MockFactory(swapRouter.factory()).getPool(params.tokenIn, params.tokenOut, params.fee) == address(0)) revert NoPool();
+    uint256 price = swapRouter.usdgPerStock();
+    amountOut = params.tokenIn == swapRouter.usdg() ? (params.amountIn * 1e18) / price : (params.amountIn * price) / 1e18;
+    return (amountOut, 0, 0, 0);
+  }
+}

@@ -12,7 +12,7 @@ import {ProofLib} from "contracts/lib/ProofLib.sol";
 import {IEntrypoint} from "interfaces/IEntrypoint.sol";
 import {IPrivacyPool} from "interfaces/IPrivacyPool.sol";
 
-import {MockEntrypoint, MockFactory, MockStock, MockSwapRouter} from "./mocks/RouterMocks.sol";
+import {MockEntrypoint, MockFactory, MockQuoterV2, MockStock, MockSwapRouter} from "./mocks/RouterMocks.sol";
 
 /// Shared signing helpers for Router tests (also used by the mainnet fork test).
 abstract contract RouterSigning is Test {
@@ -203,6 +203,20 @@ contract NuluviumRouterTest is RouterSigning {
     vm.expectRevert(MockSwapRouter.TooLittleReceived.selector);
     this.executeExternal(_buyOrder(100e6, 0.5e18 + 1, 0, 1), 0);
     assertEq(usdg.balanceOf(fresh), 100e6);
+  }
+
+  function test_mockQuoterMatchesTheMockSwap() public {
+    MockQuoterV2 quoter = new MockQuoterV2(swapRouter);
+    (uint256 quoted,,,) =
+      quoter.quoteExactInputSingle(MockQuoterV2.QuoteExactInputSingleParams(address(usdg), address(stock), 100e6, TIER, 0));
+    usdg.mint(fresh, 100e6);
+    assertEq(_execute(_buyOrder(100e6, quoted, 0, 1), 0), quoted);
+    (uint256 back,,,) =
+      quoter.quoteExactInputSingle(MockQuoterV2.QuoteExactInputSingleParams(address(stock), address(usdg), quoted, TIER, 0));
+    assertEq(back, 100e6);
+    // No pool at another tier: the quote reverts, like QuoterV2.
+    vm.expectRevert(MockQuoterV2.NoPool.selector);
+    quoter.quoteExactInputSingle(MockQuoterV2.QuoteExactInputSingleParams(address(usdg), address(stock), 100e6, 3000, 0));
   }
 
   /// @dev Lets expectRevert target the swap call itself rather than the signing helpers.

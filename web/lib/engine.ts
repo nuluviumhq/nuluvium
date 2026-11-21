@@ -7,7 +7,7 @@ import type { Note, RoutingContext, UserKeys } from "@nuluvium/sdk";
 import { parseAbi } from "viem";
 import { browserConfig, sdk } from "./chain";
 import { loadOrders, saveOrders, type Order, type Piece } from "./orders";
-import { TOKENS, expectedOut } from "./tokens";
+import { TOKENS } from "./tokens";
 
 const balanceAbi = parseAbi(["function balanceOf(address) view returns (uint256)"]);
 const MAX_ATTEMPTS = 3;
@@ -135,17 +135,16 @@ export class OrderEngine {
     for (let attempt = 1; ; attempt++) {
       await this.update(orderId, number, { status: "sending" });
       try {
-        const { executePiece } = await sdk();
+        const { executePiece, quotedBuy } = await sdk();
         const ctx = await this.context();
         const note = (await this.notes()).find((item) => item.depositIndex === BigInt(order.depositIndex));
         if (!note) throw new Error("The note for this order is no longer in your balance.");
         const amount = BigInt(piece.amount);
         if (amount > note.value) throw new Error("Your note holds less than this piece.");
 
-        const { result } = await executePiece(ctx, note, number, amount, {
-          tokenOut: token.address,
-          minAmountOut: (usdgIn) => (expectedOut(token, usdgIn) * BigInt(10_000 - order.slippageBps)) / 10_000n,
-        });
+        // A fresh quote for every piece, less the order's slippage.
+        const target = quotedBuy(ctx.client, ctx.config, token.address, order.slippageBps);
+        const { result } = await executePiece(ctx, note, number, amount, target);
         const receipt = await ctx.client.waitForTransactionReceipt({ hash: result.tx });
         const received = await ctx.client.readContract({
           address: token.address,

@@ -20,10 +20,10 @@ on every push ([.github/workflows/ci.yml](../.github/workflows/ci.yml)).
 | Package | Checks | Result |
 |---|---|---|
 | lint | Biome, recommended rules, whole repo ([biome.jsonc](../biome.jsonc)) | 0 errors; warnings are mostly `!` non-null assertions |
-| contracts | `forge test` | 18 pass offline; 12 more fork tests run with `FORK_TESTS=true` (30/30 against both chains) |
-| sdk | typecheck, `npm test` | 17 pass |
+| contracts | `forge test` | 19 pass offline; 12 more fork tests run with `FORK_TESTS=true` (not re-run for this change) |
+| sdk | typecheck, `npm test` | 27 pass |
 | mcp | typecheck, `npm test`, `npm pack --dry-run` | 13 pass |
-| relayer | `npm test` | 8 pass |
+| relayer | `npm test` | 16 pass |
 | asp | `npm test` | 36 pass |
 | stats | `npm test` | 12 pass |
 | web | typecheck, `npm test`, `next build` | 10 pass (pure logic only: no UI tests), build passes |
@@ -85,6 +85,8 @@ that makes HTTP calls only, so ws is not reachable. The same `ws`/`underscore` o
 | No server stores which fresh addresses belong to whom | Keys are made on the user's device; the relayer only sees one piece at a time | `web/components/app/session.tsx`, `web/lib/deviceKeys.ts` (email logins), `mcp/` runs on the agent's machine. Relayer: no storage, `observability: false` in `relayer/wrangler.jsonc`. Stats: running totals only (`stats/src/totals.js`) |
 | Privy (login) cannot rebuild the keys | Email logins use a random phrase made in the browser, never a signature of the Privy wallet | `web/lib/deviceKeys.ts`, `session.tsx` (`unlock`) |
 | The relayer cannot change an order or take more than the signed fee | The fresh address signs the order (EIP-712) with its own price limit and fee cap | `contracts/src/NuluviumRouter.sol` `_swap` (signature, nonce, deadline, `maxFee`, `minAmountOut`); tests in `NuluviumRouter.t.sol`. The relayer also refuses `minAmountOut = 0` (`relayer/src/parse.js`) |
+| Each piece's price limit comes from a fresh Uniswap quote | Clients quote QuoterV2 at the Router's tier for every piece (1% below by default); each relayer quotes again and refuses a minimum more than 5% below its own quote, or any piece it cannot quote | `sdk/src/quote.ts` + `sdk/test/quote.test.ts`; `relayer/src/bound.js` + `relayer/test/bound.test.js`. Testnet uses a stand-in quoter for the fixed-price mock (`MockQuoterV2`); testnet run in [testnet.md](testnet.md) |
+| Two relayers; one that is down or refuses does not stop a piece | Same code, own key and gas float each; clients pick one at random per piece and send the same signed piece to the other when the first fails | `relayer/wrangler.jsonc` (env `second`), `sdk/src/relayer.ts` + `sdk/test/relayer.test.ts`; failover piece on testnet in [testnet.md](testnet.md) |
 | Fee is 0.10 USDG per piece today | The larger of 0.10 USDG and gas + 20% | `relayer/src/fee.js`; live at `/quote` |
 | Every deposit is screened; up to 1,000 USDG each, 25,000 in total | OFAC list, the issuer's blocklist, our denylist, beta caps; the depositor and, one hop back, the senders of its USDG (refused at 10% of the deposit or more) | `asp/src/screen.js`, `asp/src/trace.js` + tests. Fails closed: if a list or a source trace cannot be read, no root is posted (`asp/src/worker.js`). Every set: [approved-sets](https://github.com/nuluviumhq/approved-sets) |
 | A deposit can always be taken back by its depositor | `ragequit` is on the pool contract itself, which is not upgradeable | Privacy Pools `PrivacyPool.ragequit`; `sdk/src/exit.ts`; testnet ragequits in [testnet.md](testnet.md) |
@@ -99,7 +101,7 @@ Testnet. Since 2026-11-21 the owner roles are held by a Safe 2-of-2; the other r
 |---|---|---|---|
 | Safe 2-of-2 `0xDe29…fCB5` (SafeL2 1.4.1; the deployer `0xbdED…170b` held these roles until 2026-11-21) | Router owner; Privacy Pools Entrypoint `OWNER_ROLE` | Allow or remove stock tokens on the Router; pause Router swaps; upgrade the Entrypoint (UUPS proxy); wind down the pool (stops new deposits); change the postman; withdraw Entrypoint fees (vetting fee is 0) | Move anyone's deposit or tokens; change a signed order; stop `ragequit` (on the pool contract, not upgradeable); spend a note without its secrets |
 | Postman `0xD40C…3E32` (ASP Worker secret) | Entrypoint `ASP_POSTMAN` | Post approved-set roots: approve, refuse, or drop a deposit from the set | Spend or move funds. A deposit left out of the set cannot be traded privately, but can still be taken back |
-| Relayer `0x7a7A…c72F` (relayer Worker secret) | Sends Router transactions, receives the fee | Refuse or delay pieces and sells (censorship, downtime) | Change an order, raise the fee above the signed cap, or see more than the piece it sends. There is one relayer today; a second one is planned |
+| Relayers `0x7a7A…c72F` (relayer 1) and `0x21Ad…55c0` (relayer 2), each its own Worker secret | Send Router transactions, receive the fee | Refuse or delay the pieces and sells sent to them (clients then use the other relayer) | Change an order, raise the fee above the signed cap, loosen the signed price limit, or see more than the piece they send. Both run by Nuluvium today: together they can still censor |
 | Faucet `0x03E4…c114` (faucet Worker secret) | Sends test ETH and mints test USDG (the mock token's mint is open to anyone) | Send a little testnet ETH and mint test USDG to wallets that ask, within daily limits | Touch the pool, the Router, notes or anything on mainnet; it holds only a little testnet ETH |
 | Web app (Cloudflare Worker) | Serves the app and the RPC proxy | Ship code that runs in users' browsers (as any web app can) | Read keys it never receives; the app works the same from a local build |
 
@@ -109,8 +111,13 @@ tokens already on a fresh address stay under that address's key.
 ## Known gaps
 
 - Router owner and Entrypoint owner: a Safe 2-of-2 on testnet since 2026-11-21; the deployer holds neither role. Mainnet: the same setup.
-- One relayer: it can censor or go down. Mainnet: a second relayer.
-- Minimum output for buys uses the mock's fixed price on testnet; mainnet needs a Uniswap quote.
+- Two relayers, both run by Nuluvium: one going down no longer stops pieces, but together they can
+  still censor. Independent operators are a later step.
+- Testnet has no Uniswap: quotes come from a stand-in for the fixed-price mock router. The real
+  QuoterV2 path is the same call; the listing script reads it on mainnet (`setPoolFee` per token at
+  the tier that gives the most tokens for 1,000 USDG).
+- The gas float alert is a Telegram message from each relayer's cron, sent only once the bot token
+  and chat id are set as Worker secrets.
 - The web app has no UI tests; its tests cover pure logic (country check, chain reads, RPC policy).
 - No independent audit yet; deposits stay capped until there is one.
 - Source-of-funds screening goes one hop back only: USDG that passed through a clean wallet first is not traced. It relies on Alchemy's transfers API (`alchemy_getAssetTransfers`); on another RPC the trace fails and deposits wait (fail closed).

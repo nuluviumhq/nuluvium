@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Nuluvium MCP server (stdio). Runs on the agent's own machine: the secret, the notes and the
-// order schedule never leave it. Pieces are sent through the Nuluvium relayer.
+// order schedule never leave it. Pieces are sent through the Nuluvium relayers (the other one when one is down or refuses).
 //
 // Environment:
 //   NULUVIUM_MNEMONIC   required. The agent's secret (BIP-39). Never printed or returned.
 //   NULUVIUM_NETWORK    default "robinhood-testnet"
 //   NULUVIUM_RPC_URL    optional own RPC (may hold an API key; never printed)
 //   NULUVIUM_LOG_CHUNK  blocks per log query with NULUVIUM_RPC_URL (default 10000, Alchemy limit)
+//   NULUVIUM_RELAYERS   optional comma-separated relayer URLs instead of the network's own list
 //   NULUVIUM_HOME       default ~/.nuluvium (order schedule; local only)
 //   NULUVIUM_ARTIFACTS  circuit files folder. Default: testnet/artifacts when run from the source
 //                       tree with the files there, else ~/.nuluvium/artifacts (downloaded once)
@@ -52,6 +53,9 @@ const network = rpcOverride
     }
   : baseNetwork;
 delete process.env.NULUVIUM_RPC_URL; // may contain an API key
+// Own relayer list (e.g. a relayer the agent runs itself); failover works across all of them.
+const relayerOverride = process.env.NULUVIUM_RELAYERS?.split(",").map((url) => url.trim().replace(/\/$/, "")).filter(Boolean);
+if (relayerOverride?.length) network.config = { ...network.config, relayerUrls: relayerOverride };
 
 const home = process.env.NULUVIUM_HOME ?? join(homedir(), ".nuluvium");
 const sourceArtifacts = fileURLToPath(new URL("../../testnet/artifacts", import.meta.url));
@@ -207,7 +211,7 @@ server.registerTool(
       usdgAmount: z.number().positive().describe("Total USDG to spend"),
       pieces: z.number().int().min(1).max(20).default(5).describe("How many pieces (1 to 20)"),
       windowMinutes: z.number().min(1).max(1440).default(10).describe("Spread the pieces over this many minutes"),
-      maxSlippagePercent: z.number().min(0.1).max(5).default(1).describe("Worst price accepted per piece, in percent"),
+      maxSlippagePercent: z.number().min(0.1).max(5).default(1).describe("Worst price accepted per piece, in percent below a fresh Uniswap quote (the relayer refuses more than 5)"),
     },
   },
   safe(async ({ token, usdgAmount, pieces, windowMinutes, maxSlippagePercent }) => {

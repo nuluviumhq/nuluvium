@@ -53,7 +53,14 @@ the Router), so that design waits for its own session and the auditor's input.
 transaction. It checks that the withdrawal pays the order owner and that the order is a buy; the
 withdrawal terms themselves are bound to the proof. If the buy fails, the withdrawal reverts too.
 
+## Listing (2026-11-21)
+`scripts/list-tokens.mjs` (local tool) reads each token's v3 USDG pools at the four tiers, quotes buys
+of 100 and 1,000 USDG on QuoterV2, picks the tier with the most tokens out at 1,000 and compares it
+with `poolFee`. Changes become a Safe Transaction Builder batch of `setPoolFee` calls, simulated as
+the Safe; it never sends anything. Token lists often name a Uniswap v4 pool (32-byte id) as the price
+pool; the Router ignores those, only v3 pools count.
+
 ## Not done yet
-- Mainnet deploy, Safe as owner, per-token tier choice.
+- Mainnet deploy, Safe as owner (testnet: done 2026-11-21).
 - Deploy on testnet: no official Uniswap there, so a testnet Router needs our own MockUSDG/stock
   pool; it is a smoke test only, the fork tests are the real check.

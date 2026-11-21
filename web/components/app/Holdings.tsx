@@ -5,8 +5,8 @@
 // address's key into a wallet of your own.
 
 import { useCallback, useEffect, useState } from "react";
-import { formatUsdg, readPieceFee } from "@/lib/chain";
-import { freshPrivateKey, readHoldings, saleValue, sellHolding, type Holding } from "@/lib/exits";
+import { formatUsdg, quoteOut, readPieceFee } from "@/lib/chain";
+import { freshPrivateKey, readHoldings, sellHolding, type Holding } from "@/lib/exits";
 import { TOKENS, type TradableToken } from "@/lib/tokens";
 import { explorerAddress, shortAddress } from "@/lib/wallet";
 import { Dialog } from "./Dialog";
@@ -14,7 +14,8 @@ import { friendlyError, useSession } from "./session";
 
 const tokenAmount = (token: TradableToken, units: bigint) => (Number(units) / 10 ** token.decimals).toFixed(4);
 
-type Pending = { kind: "sell"; holding: Holding; token: TradableToken; fee: bigint | null } | { kind: "key"; holding: Holding; key: `0x${string}` | null };
+type Pending =
+  | { kind: "sell"; holding: Holding; token: TradableToken; fee: bigint | null; value: bigint | null | "failed" } | { kind: "key"; holding: Holding; key: `0x${string}` | null };
 
 export function Holdings() {
   const { session, toast, orders } = useSession();
@@ -33,10 +34,13 @@ export function Holdings() {
   useEffect(refresh, [refresh, done]);
 
   const askSell = (holding: Holding, token: TradableToken) => {
-    setPending({ kind: "sell", holding, token, fee: null });
-    readPieceFee().then(
-      (fee) => setPending((current) => (current?.kind === "sell" && current.holding === holding ? { ...current, fee } : current)),
-      () => {},
+    setPending({ kind: "sell", holding, token, fee: null, value: null });
+    const update = (change: { fee?: bigint; value?: bigint | "failed" }) =>
+      setPending((current) => (current?.kind === "sell" && current.holding === holding ? { ...current, ...change } : current));
+    readPieceFee().then((fee) => update({ fee }), () => {});
+    quoteOut("sell", token.address, holding.tokens[token.symbol] ?? 0n).then(
+      (value) => update({ value }),
+      () => update({ value: "failed" }),
     );
   };
 
@@ -117,7 +121,7 @@ export function Holdings() {
         title={pending?.kind === "sell" ? `Sell ${pending.token.symbol} on this address?` : ""}
         lead={
           pending?.kind === "sell"
-            ? `${tokenAmount(pending.token, pending.holding.tokens[pending.token.symbol] ?? 0n)} ${pending.token.symbol} on ${shortAddress(pending.holding.address)} for about ${formatUsdg(saleValue(pending.token, pending.holding.tokens[pending.token.symbol] ?? 0n))} tUSDG at the mock price.`
+            ? `${tokenAmount(pending.token, pending.holding.tokens[pending.token.symbol] ?? 0n)} ${pending.token.symbol} on ${shortAddress(pending.holding.address)} ${pending.value === null ? ": reading the price…" : pending.value === "failed" ? ": no price quote right now." : ` for about ${formatUsdg(pending.value)} tUSDG at the current quote.`}`
             : ""
         }
       >
@@ -125,7 +129,7 @@ export function Holdings() {
           <>
             <ul className="fine">
               <li>Relayer fee: {pending.fee === null ? "reading…" : `${formatUsdg(pending.fee)} tUSDG`}, taken from what the sale brings. No gas from you and no wallet prompt.</li>
-              <li>The tUSDG stays on this fresh address. At most 1% below the mock price, or the sale does not happen.</li>
+              <li>The tUSDG stays on this fresh address. At most 1% below a fresh quote taken when you sell, or the sale does not happen.</li>
               <li>Like the buy, the sale is public but not linked to you or your other addresses.</li>
             </ul>
             <div className="modal-options">

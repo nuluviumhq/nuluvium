@@ -1,14 +1,14 @@
 # Nuluvium MCP server (session 1.7, 2026-11-16)
 
 `mcp/`: a stdio MCP server an AI agent runs **on its own machine**. The secret, the notes and the
-order schedule never leave that machine; pieces go out through the Nuluvium relayer.
+order schedule never leave that machine; pieces go out through the Nuluvium relayers (the other one takes over when one is down or refuses).
 
 ## Tools
 | Tool | Input | Does |
 |---|---|---|
 | `get_balance` | – | Shielded USDG per note with its ASP status (approved, waiting, rejected + reason), total and approved total, which notes are busy, the deposit wallet (address, USDG, ETH), tradable tokens |
 | `deposit` | usdgAmount (1–1,000) | Approve + deposit from the deposit wallet into a new note; waits for both transactions |
-| `route_order` | token, usdgAmount, pieces (1–20, default 5), windowMinutes (1–1440, default 10), maxSlippagePercent (default 1) | Plans random piece sizes and times, stores the order, sends pieces in the background; returns at once |
+| `route_order` | token, usdgAmount, pieces (1–20, default 5), windowMinutes (1–1440, default 10), maxSlippagePercent (0.1–5, default 1, below a fresh quote) | Plans random piece sizes and times, stores the order, sends pieces in the background; returns at once |
 | `cancel_order` | orderId | Cancels pieces not sent yet |
 | `get_orders` | onlyOpen | Orders and the status of every piece |
 | `get_fills` | orderId (optional) | Executed pieces: USDG spent, fee, tokens received, fresh address, tx link |
@@ -33,8 +33,9 @@ wallet holds the USDG and at least 0.00001 ETH; otherwise it answers with what t
 - Each piece is retried up to 3 times (20 s apart), then marked failed.
 - Orders live in `~/.nuluvium/orders-<network>.json` (atomic writes). No secrets in it, but it links
   the fresh addresses of an order: local only.
-- Only allowlisted tokens (testnet: MSTK mock at a fixed price; mainnet: real stock tokens with a
-  Uniswap quote, not wired yet).
+- Only allowlisted tokens (testnet: MSTK mock at a fixed price). Each piece's minimum is a fresh
+  QuoterV2 quote at the Router's tier less `maxSlippagePercent` (testnet: a stand-in quoter for the
+  mock); the relayers refuse more than 5% below their own quote.
 - stdout carries the protocol; the server sends all logs to stderr. It deletes the mnemonic from its
   environment after reading it and never returns it.
 

@@ -6,11 +6,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatUsdg, parseUsdg, readPieceFee, readRecentPieces, unitsToInput, type PublicPiece } from "@/lib/chain";
+import { formatUsdg, parseUsdg, quoteOut, readPieceFee, readRecentPieces, unitsToInput, type PublicPiece } from "@/lib/chain";
 import { STATUS_CLASS, STATUS_LABEL, marble } from "@/lib/format";
 import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
 import { orderLimits } from "@/lib/orderLimits";
-import { TOKENS, expectedOut } from "@/lib/tokens";
+import { TOKENS } from "@/lib/tokens";
 import { explorerTx, shortAddress } from "@/lib/wallet";
 import { Choice } from "./Choice";
 import { MIN_PIECE, START_DELAY_SECONDS, friendlyError, useSession } from "./session";
@@ -49,7 +49,27 @@ export function Trade() {
   const token = TOKENS.find((item) => item.symbol === symbol) ?? TOKENS[0]!;
   const amount = parseUsdg(amountText) ?? 0n;
   const fees = feePerPiece === null ? null : feePerPiece * BigInt(pieces);
-  const receive = fees !== null && amount > fees ? expectedOut(token, amount - fees) : 0n;
+  const spend = fees !== null && amount > fees ? amount - fees : 0n;
+  // Quote for the whole order after fees (each piece gets its own quote when it is sent).
+  const [receive, setReceive] = useState<bigint | null>(0n);
+  useEffect(() => {
+    if (spend === 0n) {
+      setReceive(0n);
+      return;
+    }
+    setReceive(null);
+    let current = true;
+    const timer = window.setTimeout(() => {
+      quoteOut("buy", token.address, spend).then(
+        (out) => current && setReceive(out),
+        () => current && setReceive(0n),
+      );
+    }, 300);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [spend, token.address]);
   const mine = orders.slice(0, 5);
   const approved = balance.value?.approved;
   // One order is paid from one approved deposit that no open order uses (as placeOrder picks it):
@@ -209,7 +229,7 @@ export function Trade() {
                 </div>
                 <div>
                   <span className="name"><span className="n">06</span>You receive, about</span>
-                  <span className="value">{formatTokens(receive, token.decimals)} <small>{token.symbol}</small></span>
+                  <span className="value">{receive === null ? "…" : formatTokens(receive, token.decimals)} <small>{token.symbol}</small></span>
                 </div>
                 <div>
                   <span className="name"><span className="n">07</span>Relayer fee, {pieces} pieces</span>
@@ -234,7 +254,7 @@ export function Trade() {
           ) : blocker === "small" ? (
             <p className="reason" aria-live="polite">Each piece is at least {formatUsdg(MIN_PIECE)} tUSDG: {pieces} pieces need {formatUsdg(minAmount)} or more. Raise the amount or pick fewer pieces.</p>
               ) : null}
-              <p className="fine">Paid from your shielded balance. Each piece swaps from its own fresh address; keep this tab open until the last piece. Testnet: MSTK is a mock stock at a fixed price of 180 tUSDG.</p>
+              <p className="fine">Paid from your shielded balance. Each piece swaps from its own fresh address; keep this tab open until the last piece. Each piece accepts at most 1% below a fresh quote taken when it is sent. Testnet: MSTK is a mock stock at a fixed price of 180 tUSDG.</p>
             </form>
         </aside>
       </div>
