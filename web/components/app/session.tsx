@@ -386,7 +386,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           setPhrase={setPhrase}
           unlocking={unlockWanted}
           busy={busy}
-          step={step}
+          // Which part of unlocking is running, so a long wait reads as progress.
+          step={step ?? (privy.authenticated && unlockWanted ? (pickWallet(wallets) ? "Opening your wallet…" : "Logged in. Privy is creating your wallet…") : null)}
           error={loginError}
           setError={setLoginError}
           onBegin={() => {

@@ -43,6 +43,7 @@ export function LoginScreen(props: LoginScreenProps) {
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"email" | "code">("email");
   const [sending, setSending] = useState(false);
+  const [slow, setSlow] = useState(false);
   const art = useRef<HTMLElement | null>(null);
   const form = useRef<HTMLDivElement | null>(null);
 
@@ -53,6 +54,15 @@ export function LoginScreen(props: LoginScreenProps) {
     const first = form.current?.querySelector<HTMLElement>("input, textarea, button:not([disabled])");
     first?.focus({ preventScroll: true });
   }, [view]);
+
+  // Unlocking for a while: say it is still working, so it does not look stuck.
+  const waiting = privy.authenticated && unlocking && !phrase;
+  useEffect(() => {
+    setSlow(false);
+    if (!waiting) return;
+    const timer = window.setTimeout(() => setSlow(true), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [waiting]);
 
   // The page under the screen does not scroll while it is shown; Escape looks around instead.
   useEffect(() => {
@@ -184,6 +194,8 @@ export function LoginScreen(props: LoginScreenProps) {
                   <>
                     <h1 className="display" id="login-title">Unlocking</h1>
                     <p className="lead" aria-live="polite">{step ?? "Getting your wallet ready…"}</p>
+                    {error ? null : <span className="login-progress" aria-hidden="true" />}
+                    {slow && !error ? <p className="fine">Still working. The first login can take a little longer while Privy sets up your wallet.</p> : null}
                     {error ? <button className="button" type="button" disabled={busy} onClick={onBegin}>Try again</button> : null}
                   </>
                 ) : (

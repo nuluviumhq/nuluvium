@@ -1862,3 +1862,8 @@ a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rota
 .mock-steps { position: fixed; right: 1rem; bottom: 1rem; z-index: 60; display: flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.5rem; border-radius: 0.5rem; background: var(--ink); color: var(--white); }
 .mock-steps span { padding: 0 0.4rem; opacity: 0.6; }
 .mock-steps button { padding: 0.35rem 0.55rem; border-radius: 0.25rem; background: rgba(255, 255, 255, 0.12); color: var(--white); font: inherit; }
+/* Unlocking: an endless progress line, so a long wait does not look stuck. */
+.login-progress { position: relative; display: block; height: 2px; margin-top: 1.5rem; overflow: hidden; border-radius: 1px; background: var(--green-10); }
+.login-progress::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--green); animation: login-progress 1.4s var(--ease-link) infinite; }
+@keyframes login-progress { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) { .login-progress::after { animation-duration: 4s; } }
