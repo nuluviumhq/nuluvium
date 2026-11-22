@@ -20,25 +20,25 @@
   },
   "dependencies": {
     "@nuluvium/sdk": "file:../sdk",
-    "@opennextjs/cloudflare": "1.20.12",
-    "@privy-io/react-auth": "3.51.0",
+    "@opennextjs/cloudflare": "1.20.18",
+    "@privy-io/react-auth": "3.52.0",
     "@solana/kit": "8.5.0",
     "@stripe/stripe-js": "1.54.2",
     "next": "16.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "viem": "2.57.8"
+    "viem": "2.57.17"
   },
   "devDependencies": {
     "@types/node": "22.19.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "5.9.3",
-    "wrangler": "4.151.0"
+    "wrangler": "4.166.0"
   },
   "overrides": {
-    "@0xbow/privacy-pools-core-sdk": {
-      "viem": "2.57.8"
-    }
+    "viem": "$viem",
+    "underscore": "1.13.8",
+    "ws": "8.23.0"
   }
 }

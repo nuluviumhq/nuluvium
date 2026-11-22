@@ -65,10 +65,11 @@ and Privy load in the browser only.
 | glob 10.3, minimatch 9 | OpenNext → node-minify | Build only | Not shipped | OpenNext 1.20.18 (node-minify 10) |
 | glob 13, minimatch 10 (AbortSignal, globparts DoS) | OpenNext | Build only | Not shipped; the build passes its own patterns | None in glob 13 |
 
-Planned fix, tested on a copy of the lockfile, **not installed yet**: Privy 3.51.0 → 3.52.0,
-OpenNext 1.20.12 → 1.20.18, wrangler 4.151.0 → 4.166.0, overrides for `ws` and `underscore`, and viem
-2.57.8 → 2.57.17 (Privy 3.52 pins it), held to one version with a `viem` override. That leaves 14:
-zod 3 in Privy's tree, and glob/minimatch in the build. No major upgrades.
+Fix **installed 2026-11-22**: Privy 3.51.0 → 3.52.0, OpenNext 1.20.12 → 1.20.18, wrangler
+4.151.0 → 4.166.0, overrides for `ws` and `underscore`, and viem 2.57.8 → 2.57.17 (Privy 3.52 pins it),
+held to one version with a `viem` override (`npm ls viem`: one version). **web is now 14 (3 moderate,
+11 high)**: zod 3 in Privy's tree, and glob/minimatch in the build. No major upgrades. All checks and the
+web build pass; the Privy login opens as before. The SDK still uses viem 2.57.8 for its own tests.
 
 **Other packages** (same trees): sdk 8 and mcp 9 (snarkjs/zk-kit: underscore, ws, ethers; mcp also
 zod), asp 5 (zk-kit/ethers, viem → ws) and relayer 2 (viem → ws). All of them run in Node or a Worker
