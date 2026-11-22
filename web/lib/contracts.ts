@@ -26,5 +26,6 @@ export const CONTRACTS: ContractRow[] = [
   { name: "MSTK (mock stock)", address: "0xf2a0289ec25994dC7d22461Afd1dF3B818A0E088" },
   { name: "Owner (Safe 2-of-2)", address: OWNER_SAFE },
   { name: "Approved-set postman (key)", address: "0xD40CA7EE663FddFc02d170E5e81bAe6D3a5B3E32" },
-  { name: "Relayer (key)", address: "0x7a7A1f77C957B7C926AA9baF6cE8fA334270c72F" },
+  { name: "Relayer 1 (key)", address: "0x7a7A1f77C957B7C926AA9baF6cE8fA334270c72F" },
+  { name: "Relayer 2 (key)", address: "0x21Ad9f184908b119694Bb0E3365eCa4Acc4155c0" },
 ];

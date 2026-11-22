@@ -27,7 +27,7 @@ export default function Page() {
         <CompareCard sides={[
           { numeral: "I", title: "On the chain", text: "What any reader of the chain sees.", rows: [
             ["Your wallet", "One deposit into the pool"],
-            ["The pieces", "Swaps from many fresh addresses, all sent by the same relayer, at different times and sizes"],
+            ["The pieces", "Swaps from many fresh addresses, all sent by Nuluvium's relayers (shared by everyone), at different times and sizes"],
             ["Not shown", "Which deposit paid for which swap, or that the swaps belong to one order"],
           ] },
           { numeral: "II", title: "On your device", text: "What never leaves your device.", rows: [

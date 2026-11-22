@@ -24,7 +24,8 @@
     // L2 block of the pool deploy (same as the ASP).
     "DEPLOY_BLOCK": "153603397",
     "ASP_URL": "https://asp.nuluvium.com",
-    "RELAYER_URL": "https://relayer.nuluvium.com",
+    // Comma-separated, main relayer first.
+    "RELAYER_URLS": "https://relayer.nuluvium.com,https://relayer2.nuluvium.com",
     // Lowercase token address → symbol, for the routed-volume split.
     "TOKEN_SYMBOLS": "{\"0xf2a0289ec25994dc7d22461afd1df3b818a0e088\":\"MSTK\"}"
   }

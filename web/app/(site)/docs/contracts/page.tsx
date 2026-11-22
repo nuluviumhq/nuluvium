@@ -13,7 +13,8 @@ const ALL_CONTRACTS = [...CONTRACTS, { name: "Deposit proof verifier (ragequit)"
 
 const SERVICES = [
   { name: "Approved-set provider", url: "https://asp.nuluvium.com", does: "Screens deposits, publishes the approved set, posts its root" },
-  { name: "Relayer", url: "https://relayer.nuluvium.com", does: "Quotes the fee (GET /quote), sends pieces (POST /piece)" },
+  { name: "Relayer 1 (main)", url: "https://relayer.nuluvium.com", does: "Quotes the fee (GET /quote), sends pieces (POST /piece)" },
+  { name: "Relayer 2 (fallback)", url: "https://relayer2.nuluvium.com", does: "Same API; the app and SDK use it when relayer 1 does not answer" },
 ];
 
 export default function Page() {

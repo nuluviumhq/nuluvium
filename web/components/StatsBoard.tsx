@@ -29,7 +29,14 @@ interface Stats {
   routed: Record<"24h" | "7d" | "all", Window>;
   pieceSizes: Array<{ from: number; to: number | null; pieces: number }>;
   cleanFunds: { approved: number; rejected: number; waiting: number; reasons: Record<string, number> } | null;
-  relayer: { feesTotal: Amount; swaps: number; currentFee: Amount | null; ethBalance: Amount | null };
+  relayer: {
+    feesTotal: Amount;
+    swaps: number;
+    currentFee: Amount | null;
+    ethBalance: Amount | null;
+    /** Each relayer's gas balance, main first (absent in summaries from before the second relayer). */
+    relayers?: Array<{ url: string; name: string | null; address: string | null; ethBalance: Amount | null }>;
+  };
 }
 
 /** "1234567" (6 decimals) → "1.23"; whole numbers with thousands separators. */
@@ -38,6 +45,13 @@ function formatUnits(value: Amount, decimals: number, digits: number): string {
   return number.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
 const usdg = (value: Amount) => formatUnits(value, 6, 2);
+const eth = (value: Amount | null) => (value ? <>{formatUnits(value, 18, 4)} <small>ETH</small></> : "–");
+
+/** One gas-balance row per relayer; older summaries only carry the main relayer's balance. */
+function gasRows(relayer: Stats["relayer"]): Array<[string, React.ReactNode]> {
+  if (!relayer.relayers?.length) return [["Gas balance", eth(relayer.ethBalance)]];
+  return relayer.relayers.map((entry, index) => [`Gas balance, ${entry.name ?? `relayer ${index + 1}`}`, eth(entry.ethBalance)]);
+}
 const count = (value: number | null) => (value === null ? "–" : value.toLocaleString("en-US"));
 
 function ago(unix: number): string {
@@ -187,21 +201,21 @@ export function StatsBoard() {
           <p className="fine">Every deposit is checked against sanctions lists, the stock issuer&#39;s blocklist and the beta caps before it can pay for a piece.</p>
         </Box>
 
-        <Box title="Relayer" note="Sends every piece">
+        <Box title="Relayers" note="Send every piece; the app falls back to the second">
           <Figures
             rows={[
               ["Fee per piece now", stats.relayer.currentFee ? <>{usdg(stats.relayer.currentFee)} <small>USDG</small></> : "–"],
               ["Fees taken, all time", <>{usdg(stats.relayer.feesTotal)} <small>USDG</small></>],
               ["Transactions sent", count(stats.relayer.swaps)],
-              ["Gas balance", stats.relayer.ethBalance ? <>{formatUnits(stats.relayer.ethBalance, 18, 4)} <small>ETH</small></> : "–"],
+              ...gasRows(stats.relayer),
             ]}
           />
-          <p className="fine">Success rate and timing are not measured: the relayer keeps no logs on purpose, so failed attempts are not recorded anywhere.</p>
+          <p className="fine">Success rate and timing are not measured: the relayers keep no logs on purpose, so failed attempts are not recorded anywhere.</p>
         </Box>
       </div>
 
       <p className="fine" style={{ marginTop: "2rem" }}>
-        Every number here is a total over everyone, counted from public chain data, the approved set and the relayer. There are no per-wallet stats: Nuluvium does not know which fresh addresses belong to whom.
+        Every number here is a total over everyone, counted from public chain data, the approved set and the relayers. There are no per-wallet stats: Nuluvium does not know which fresh addresses belong to whom.
       </p>
     </>
   );

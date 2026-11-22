@@ -105,11 +105,18 @@ async function runOnce(env) {
   const client = clientFor(env);
   const now = Math.floor(Date.now() / 1000);
   const { totals: running, latest, caughtUp, migrated } = await scan(client, env, now);
-  const [approvedSet, quote] = await Promise.all([readApprovedSet(env), fetch(`${env.RELAYER_URL}/quote`).then((response) => response.json()).catch(() => null)]);
-  const [poolUsdg, relayerEth] = await Promise.all([
-    client.readContract({ address: env.USDG, abi: erc20Abi, functionName: "balanceOf", args: [env.POOL] }),
-    quote?.relayer ? client.getBalance({ address: quote.relayer }) : Promise.resolve(null),
+  // Every relayer in RELAYER_URLS (comma-separated, main first): its quote names its address and fee.
+  const relayerUrls = (env.RELAYER_URLS ?? env.RELAYER_URL ?? "").split(",").map((url) => url.trim()).filter(Boolean);
+  const [approvedSet, ...quotes] = await Promise.all([
+    readApprovedSet(env),
+    ...relayerUrls.map((url) => fetch(`${url}/quote`).then((response) => response.json()).catch(() => null)),
   ]);
+  const [poolUsdg, ...relayerEth] = await Promise.all([
+    client.readContract({ address: env.USDG, abi: erc20Abi, functionName: "balanceOf", args: [env.POOL] }),
+    ...quotes.map((entry) => (entry?.relayer ? client.getBalance({ address: entry.relayer }) : Promise.resolve(null))),
+  ]);
+  const quote = quotes.find((entry) => entry?.fee) ?? null;
+  const relayers = relayerUrls.map((url, index) => ({ url, name: quotes[index]?.name ?? null, address: quotes[index]?.relayer ?? null, ethBalance: relayerEth[index] ?? null }));
 
   const symbols = JSON.parse(env.TOKEN_SYMBOLS);
   const totals = summarize(running, { symbols, approvedSet, now });
@@ -121,7 +128,8 @@ async function runOnce(env) {
     caughtUp,
     poolUsdg,
     ...totals,
-    relayer: { ...totals.relayer, currentFee: quote?.fee ?? null, ethBalance: relayerEth },
+    // ethBalance stays the main relayer's for older readers; relayers lists each one.
+    relayer: { ...totals.relayer, currentFee: quote?.fee ?? null, ethBalance: relayerEth[0] ?? null, relayers },
     // Ready-to-show numbers for badges (shields.io cannot divide raw token units).
     headline: {
       approvedDeposits: totals.crowd.approvedDeposits,
