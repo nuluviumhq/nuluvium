@@ -195,7 +195,7 @@ export function LoginScreen(props: LoginScreenProps) {
                     <h1 className="display" id="login-title">Unlocking</h1>
                     <p className="lead" aria-live="polite">{step ?? "Getting your wallet ready…"}</p>
                     {error ? null : <span className="login-progress" aria-hidden="true" />}
-                    {slow && !error ? <p className="fine">Still working. The first login can take a little longer while Privy sets up your wallet.</p> : null}
+                    {slow && !error ? <p className="fine">Still working. The first login can take a little longer while Privy sets up your wallet. If it does not finish, allow nuluvium.com in your ad blocker or Brave Shields, then reload.</p> : null}
                     {error ? <button className="button" type="button" disabled={busy} onClick={onBegin}>Try again</button> : null}
                   </>
                 ) : (

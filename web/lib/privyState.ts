@@ -10,7 +10,7 @@ import type { Eip1193Provider } from "./wallet";
 
 export interface BridgeWallet {
   address: string;
-  /** "privy" for the embedded wallet of an email login; the wallet's name otherwise. */
+  /** "privy" or "privy-v2" for the embedded wallet of an email login; the wallet's name otherwise. */
   walletClientType: string;
   linked: boolean;
   switchChain: (chainId: number) => Promise<void>;
@@ -31,6 +31,8 @@ export interface PrivyState {
   /** Email login without Privy's modal: send a one-time code, then log in with it. */
   sendEmailCode: (email: string) => Promise<void>;
   loginWithEmailCode: (code: string) => Promise<void>;
+  /** Makes the embedded wallet when Privy did not make it at login. */
+  createEmbeddedWallet: () => Promise<void>;
   logout: () => Promise<void>;
   connectWallet: () => void;
 }
@@ -46,6 +48,7 @@ export const notReady: PrivyState = {
   loginWithWallet: () => {},
   sendEmailCode: async () => {},
   loginWithEmailCode: async () => {},
+  createEmbeddedWallet: async () => {},
   logout: async () => {},
   connectWallet: () => {},
 };
@@ -53,3 +56,6 @@ export const notReady: PrivyState = {
 export const PrivyStateContext = createContext<PrivyState>(notReady);
 
 export const usePrivyState = () => useContext(PrivyStateContext);
+
+/** Privy's embedded wallet (an email login's): "privy", or "privy-v2" in newer Privy versions. */
+export const isEmbedded = (walletClientType: string | null | undefined) => walletClientType === "privy" || walletClientType === "privy-v2";

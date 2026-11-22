@@ -13,7 +13,7 @@ import type { UserKeys } from "@nuluvium/sdk";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { readShieldedBalance, sdk, type ShieldedBalance } from "@/lib/chain";
 import { loadDeviceSecret, saveDeviceSecret } from "@/lib/deviceKeys";
-import { usePrivyState, type BridgeWallet } from "@/lib/privyState";
+import { isEmbedded, usePrivyState, type BridgeWallet } from "@/lib/privyState";
 import { LoginScreen, type PhraseStep } from "./LoginScreen";
 import { OrderEngine } from "@/lib/engine";
 import { isOpen, type Order } from "@/lib/orders";
@@ -36,7 +36,7 @@ interface Session {
 
 /** The wallet that unlocks: a linked external wallet first, else the Privy embedded one. */
 function pickWallet(wallets: BridgeWallet[]): BridgeWallet | undefined {
-  return wallets.find((wallet) => wallet.walletClientType !== "privy" && wallet.linked) ?? wallets.find((wallet) => wallet.walletClientType === "privy");
+  return wallets.find((wallet) => !isEmbedded(wallet.walletClientType) && wallet.linked) ?? wallets.find((wallet) => isEmbedded(wallet.walletClientType));
 }
 
 export interface BalanceState {
@@ -222,7 +222,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const provider = (await wallet.getEthereumProvider()) as Eip1193Provider;
         setActiveProvider(provider);
         const address = wallet.address as `0x${string}`;
-        if (wallet.walletClientType === "privy") {
+        if (isEmbedded(wallet.walletClientType)) {
           const userId = privy.userId;
           if (!userId) throw new WalletError("Privy did not return your account. Please log in again.");
           const saved = await loadDeviceSecret(userId);
@@ -254,7 +254,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (!unlockWanted || !privy.ready || !privy.authenticated || !walletsReady || session || unlocking.current) return;
     const wallet = pickWallet(wallets);
     if (!wallet) {
-      if (privy.loginWalletType && privy.loginWalletType !== "privy") {
+      if (privy.loginWalletType && !isEmbedded(privy.loginWalletType)) {
         showScreen();
         setLoginError("Connect your wallet to unlock.");
       }
@@ -267,12 +267,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   }, [unlockWanted, privy.ready, privy.authenticated, privy.loginWalletType, walletsReady, wallets, session, showScreen, unlock]);
 
+  // Email login without a wallet a few seconds after login: Privy did not make the embedded wallet
+  // by itself (seen with the headless email login), so ask for it once.
+  const createTried = useRef(false);
+  useEffect(() => {
+    if (!unlockWanted || !privy.ready || !privy.authenticated || !walletsReady || session || createTried.current) return;
+    if (pickWallet(wallets) || (privy.loginWalletType && !isEmbedded(privy.loginWalletType))) return;
+    const timer = window.setTimeout(() => {
+      createTried.current = true;
+      privy.createEmbeddedWallet().catch(() => {
+        // Already has one (it shows up in the list shortly) or Privy refused: the screen keeps its retry.
+      });
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [unlockWanted, privy, walletsReady, wallets, session]);
+
   // After a reload, an email login with keys on this device unlocks by itself (no prompt needed).
   useEffect(() => {
     if (autoTried.current || !privy.ready || !privy.authenticated || !walletsReady || session) return;
     const wallet = pickWallet(wallets);
     const userId = privy.userId;
-    if (!wallet || wallet.walletClientType !== "privy" || !userId) return;
+    if (!wallet || !isEmbedded(wallet.walletClientType) || !userId) return;
     autoTried.current = true;
     loadDeviceSecret(userId).then(
       (saved) => saved && setUnlockWanted(true),

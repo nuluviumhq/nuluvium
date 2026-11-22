@@ -63,6 +63,9 @@ function Publisher({ onState }: { onState: (state: PrivyState) => void }) {
       loginWithWallet: () => latest.current.login({ loginMethods: ["wallet"] }),
       sendEmailCode: (address: string) => latestEmail.current.sendCode({ email: address }),
       loginWithEmailCode: (code: string) => latestEmail.current.loginWithCode({ code }),
+      createEmbeddedWallet: async () => {
+        await latest.current.createWallet();
+      },
       logout: () => latest.current.logout(),
       connectWallet: () => latest.current.connectWallet(),
     });
