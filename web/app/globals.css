@@ -1789,3 +1789,76 @@ a:hover > .icon-arrow.left, a:focus-visible > .icon-arrow.left { transform: rota
   .ticker-strip .track, .doc-seal svg, .giant-hero h1 .line > span, .giant-hero .after { animation: none; }
   .ticker-strip .track-wrap { overflow-x: auto; }
 }
+
+/* ── Login, split (2026-11-22): painting left, form right; /app shows it when logged out ── */
+.login-body { background: var(--cream); }
+.login-split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); min-height: 100svh; }
+.login-art { position: sticky; top: 0; height: 100svh; overflow: hidden; background: var(--green); color: var(--white); --lx: 50%; --ly: 50%; }
+.login-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; }
+.login-art[data-art="couriers"] img { object-position: 30% 60%; }
+/* A slow drift so the painting feels alive; the colour lens follows the pointer. */
+.login-art .base { animation: login-drift 28s var(--ease-link) infinite alternate; }
+.login-art .lens { animation: login-drift 28s var(--ease-link) infinite alternate; clip-path: circle(0 at var(--lx) var(--ly)); transition: clip-path 0.5s var(--ease-link); }
+.login-art.looking .lens { clip-path: circle(7.5rem at var(--lx) var(--ly)); transition: clip-path 0.25s var(--ease-link); }
+@keyframes login-drift { from { transform: scale(1.04) translate(0, 0); } to { transform: scale(1.12) translate(-2%, -1.5%); } }
+.login-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(12, 54, 40, 0.55) 0%, rgba(12, 54, 40, 0) 22%, rgba(12, 54, 40, 0) 50%, rgba(12, 54, 40, 0.92) 100%); pointer-events: none; }
+.login-art .wordmark { position: absolute; z-index: 1; top: 1.75rem; left: 2rem; color: var(--white); font-size: 1.5rem; }
+.login-caption { position: absolute; z-index: 1; left: 2rem; right: 2rem; bottom: 2rem; max-width: 34rem; pointer-events: none; }
+.login-caption .title { font-size: clamp(1.5rem, 2.2vw, 2rem); line-height: 1.2; }
+.login-caption ul { list-style: none; margin: 1.5rem 0 0; padding: 0; display: grid; gap: 0.6rem; color: rgba(255, 255, 255, 0.85); }
+.login-caption li { display: flex; gap: 0.9rem; opacity: 0; transform: translateY(0.5rem); animation: login-in 0.7s var(--ease-link) forwards; }
+.login-caption li span { color: rgba(255, 255, 255, 0.5); }
+.login-caption li:nth-child(2) { animation-delay: 0.12s; }
+.login-caption li:nth-child(3) { animation-delay: 0.24s; }
+@keyframes login-in { to { opacity: 1; transform: none; } }
+
+.login-panel { display: flex; flex-direction: column; min-height: 100svh; padding: 1.75rem clamp(1.25rem, 4vw, 4rem) 2rem; color: var(--green); }
+.login-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.login-top .back { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+.login-form { flex: 1; display: grid; align-content: center; width: 100%; max-width: 26rem; margin: 3rem auto; }
+.login-step { animation: login-in 0.5s var(--ease-link) forwards; opacity: 0; }
+.login-step[hidden] { display: none; }
+.login-form .display { font-size: clamp(2.25rem, 3.4vw, 3rem); color: var(--green); }
+.login-form .lead { margin-top: 0.75rem; font-size: 1.0625rem; color: var(--green-70); }
+.login-form .lead b { font-weight: 500; color: var(--green); }
+.login-form .field { margin-top: 2rem; }
+.login-form .button { width: 100%; justify-content: center; margin-top: 1rem; }
+.login-form .code-input { font-family: var(--mono); font-size: 1.5rem; letter-spacing: 0.5em; }
+.login-form .code { margin-top: 1.5rem; font-size: 0.875rem; white-space: pre-wrap; }
+.login-phrase { display: block; width: 100%; min-height: 7rem; margin-top: 1.5rem; border: 0; resize: vertical; }
+.login-or { display: flex; align-items: center; gap: 1rem; margin-top: 1.25rem; }
+.login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--green-20); }
+.login-row { display: flex; justify-content: space-between; gap: 1rem; }
+.login-row button { font: inherit; color: var(--green); }
+.login-check { display: flex; gap: 0.5rem; align-items: center; }
+.login-foot { width: 100%; max-width: 26rem; margin: 0 auto; }
+.login-foot .look { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1rem; text-transform: none; }
+.login-foot .look .icon-arrow { transition: transform 0.3s var(--ease-link); }
+.login-foot .look:hover .icon-arrow { transform: translateX(0.25rem); }
+
+@media (max-width: 760px) {
+  .login-split { grid-template-columns: 1fr; }
+  .login-art { position: relative; height: 34svh; min-height: 15rem; }
+  .login-art .wordmark { top: 1.25rem; left: var(--safe); }
+  .login-caption { left: var(--safe); right: var(--safe); bottom: 1.25rem; }
+  .login-caption ul { display: none; }
+  .login-panel { min-height: 0; padding: 1.25rem var(--safe) 2rem; }
+  .login-form { margin: 2rem auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-art .base, .login-art .lens { animation: none; }
+  .login-caption li, .login-step { animation: none; opacity: 1; transform: none; }
+}
+
+/* The web app shows the split login as a screen over the app (components/app/LoginScreen.tsx). */
+.login-screen { position: fixed; inset: 0; z-index: 39; overflow-y: auto; overscroll-behavior: contain; background: var(--cream); animation: login-screen-in 0.4s var(--ease-link); }
+@keyframes login-screen-in { from { opacity: 0; } to { opacity: 1; } }
+.login-error { color: var(--green); }
+.login-row button[disabled], .login-form .button[disabled] { opacity: 0.45; cursor: default; }
+.login-form .button[disabled]:hover { background: var(--green); color: var(--white); }
+.login-form .button.outline[disabled]:hover { background: var(--white); color: var(--green); }
+
+/* Mockup only: step switcher (not ported to the web app). */
+.mock-steps { position: fixed; right: 1rem; bottom: 1rem; z-index: 60; display: flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.5rem; border-radius: 0.5rem; background: var(--ink); color: var(--white); }
+.mock-steps span { padding: 0 0.4rem; opacity: 0.6; }
+.mock-steps button { padding: 0.35rem 0.55rem; border-radius: 0.25rem; background: rgba(255, 255, 255, 0.12); color: var(--white); font: inherit; }

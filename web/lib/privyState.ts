@@ -26,6 +26,11 @@ export interface PrivyState {
   walletsReady: boolean;
   wallets: BridgeWallet[];
   login: () => void;
+  /** Privy's wallet list only (the login screen has its own email form). */
+  loginWithWallet: () => void;
+  /** Email login without Privy's modal: send a one-time code, then log in with it. */
+  sendEmailCode: (email: string) => Promise<void>;
+  loginWithEmailCode: (code: string) => Promise<void>;
   logout: () => Promise<void>;
   connectWallet: () => void;
 }
@@ -38,6 +43,9 @@ export const notReady: PrivyState = {
   walletsReady: false,
   wallets: [],
   login: () => {},
+  loginWithWallet: () => {},
+  sendEmailCode: async () => {},
+  loginWithEmailCode: async () => {},
   logout: async () => {},
   connectWallet: () => {},
 };

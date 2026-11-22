@@ -6,7 +6,7 @@
 // Privy only authenticates and holds the login wallet; the Nuluvium keys are made in the browser
 // (components/app/session.tsx), so Privy never learns the fresh addresses.
 
-import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
+import { PrivyProvider, useLoginWithEmail, usePrivy, useWallets } from "@privy-io/react-auth";
 import { ROBINHOOD_TESTNET } from "@nuluvium/sdk/config";
 import { useEffect, useRef } from "react";
 import { defineChain } from "viem";
@@ -34,6 +34,10 @@ function Publisher({ onState }: { onState: (state: PrivyState) => void }) {
   // publish only when a value the app uses changes (publishing re-renders this component).
   const latest = useRef(privy);
   latest.current = privy;
+  // Headless email login: the login screen (LoginScreen.tsx) draws the form, Privy sends and checks the code.
+  const email = useLoginWithEmail();
+  const latestEmail = useRef(email);
+  latestEmail.current = email;
   const userId = privy.user?.id ?? null;
   const loginWalletType = privy.user?.wallet?.walletClientType ?? null;
   const walletKey = wallets.map((wallet) => `${wallet.address}:${wallet.walletClientType}:${wallet.linked}`).join(",");
@@ -56,6 +60,9 @@ function Publisher({ onState }: { onState: (state: PrivyState) => void }) {
         getEthereumProvider: async () => (await wallet.getEthereumProvider()) as Eip1193Provider,
       })),
       login: () => latest.current.login(),
+      loginWithWallet: () => latest.current.login({ loginMethods: ["wallet"] }),
+      sendEmailCode: (address: string) => latestEmail.current.sendCode({ email: address }),
+      loginWithEmailCode: (code: string) => latestEmail.current.loginWithCode({ code }),
       logout: () => latest.current.logout(),
       connectWallet: () => latest.current.connectWallet(),
     });

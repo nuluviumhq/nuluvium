@@ -14,6 +14,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { readShieldedBalance, sdk, type ShieldedBalance } from "@/lib/chain";
 import { loadDeviceSecret, saveDeviceSecret } from "@/lib/deviceKeys";
 import { usePrivyState, type BridgeWallet } from "@/lib/privyState";
+import { LoginScreen, type PhraseStep } from "./LoginScreen";
 import { OrderEngine } from "@/lib/engine";
 import { isOpen, type Order } from "@/lib/orders";
 import { SLIPPAGE_BPS, TOKENS } from "@/lib/tokens";
@@ -32,9 +33,6 @@ interface Session {
   /** How the keys were made: a wallet signature, or a recovery phrase on this device (email login). */
   kind: "wallet" | "email";
 }
-
-/** Email login without keys on this device: make new ones, or restore them from the phrase. */
-type PhraseStep = { mode: "choose" } | { mode: "new"; phrase: string; saved: boolean } | { mode: "restore"; text: string };
 
 /** The wallet that unlocks: a linked external wallet first, else the Privy embedded one. */
 function pickWallet(wallets: BridgeWallet[]): BridgeWallet | undefined {
@@ -104,8 +102,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [balance, setBalance] = useState<BalanceState>({ state: "idle" });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastTx, setToastTx] = useState<string | null>(null);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [loginShown, setLoginShown] = useState(false);
+  // The login screen covers the app while nobody is unlocked, until "Look around first".
+  const [screen, setScreen] = useState(true);
   const [step, setStep] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -116,10 +114,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [unlockWanted, setUnlockWanted] = useState(false);
   const unlocking = useRef(false);
   const autoTried = useRef(false);
-  const openTimer = useRef<number | undefined>(undefined);
   const afterLogin = useRef<(() => void) | null>(null);
   const lastFocus = useRef<HTMLElement | null>(null);
-  const firstOption = useRef<HTMLButtonElement | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const engine = useRef<OrderEngine | null>(null);
   const balanceRun = useRef(0);
@@ -176,46 +172,32 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("beforeunload", onLeave);
   }, [orders]);
 
-  /** Shows the unlock modal (Privy has its own for logging in). */
-  const showModal = useCallback(() => {
-    lastFocus.current = document.activeElement as HTMLElement | null;
-    setLoginShown(true);
-    // A moment later, so the opening transition runs.
-    window.clearTimeout(openTimer.current);
-    openTimer.current = window.setTimeout(() => {
-      setLoginOpen(true);
-      firstOption.current?.focus();
-    }, 20);
+  /** Shows the login screen (LoginScreen.tsx) over the app. */
+  const showScreen = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement && !document.activeElement.closest(".login-screen")) lastFocus.current = document.activeElement;
+    setScreen(true);
   }, []);
 
+  // Logged in with Privy already (a wallet login after a reload): unlocking starts at once.
   const openLogin = useCallback(
     (next?: () => void) => {
       afterLogin.current = next ?? null;
       setStep(null);
       setLoginError(null);
       setPhrase(null);
-      setUnlockWanted(true);
-      if (privy.ready && !privy.authenticated) privy.login();
-      else showModal();
+      setUnlockWanted(Boolean(privy.authenticated));
+      showScreen();
     },
-    [privy, showModal],
+    [privy.authenticated, showScreen],
   );
 
+  /** "Look around first": hides the screen; a later Log in brings it back. */
   const closeLogin = useCallback(() => {
     afterLogin.current = null;
     setUnlockWanted(false);
-    window.clearTimeout(openTimer.current);
-    setLoginOpen(false);
-    window.setTimeout(() => setLoginShown(false), 300);
+    setScreen(false);
     lastFocus.current?.focus?.();
   }, []);
-
-  useEffect(() => {
-    if (!loginShown) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && closeLogin();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [loginShown, closeLogin]);
 
   const finish = useCallback(
     (address: `0x${string}`, keys: UserKeys, kind: Session["kind"]) => {
@@ -273,17 +255,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const wallet = pickWallet(wallets);
     if (!wallet) {
       if (privy.loginWalletType && privy.loginWalletType !== "privy") {
-        showModal();
+        showScreen();
         setLoginError("Connect your wallet to unlock.");
       }
       return;
     }
-    if (!loginShown) showModal();
+    showScreen();
     unlocking.current = true;
     void unlock(wallet).finally(() => {
       unlocking.current = false;
     });
-  }, [unlockWanted, privy.ready, privy.authenticated, privy.loginWalletType, walletsReady, wallets, session, loginShown, showModal, unlock]);
+  }, [unlockWanted, privy.ready, privy.authenticated, privy.loginWalletType, walletsReady, wallets, session, showScreen, unlock]);
 
   // After a reload, an email login with keys on this device unlocks by itself (no prompt needed).
   useEffect(() => {
@@ -364,6 +346,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setActiveProvider(null);
       autoTried.current = true; // do not unlock again by itself after logging out
+      setUnlockWanted(false);
+      setScreen(true);
       void privy.logout();
       toast("Logged out. Your keys were cleared from memory; scheduled pieces wait until you log in again.");
     },
@@ -395,74 +379,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   return (
     <Context.Provider value={value}>
       {children}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: a click on the backdrop is a mouse shortcut; keyboards close with Escape or the Close button */}
-      <div
-        className={loginOpen ? "modal open" : "modal"}
-        hidden={!loginShown}
-        onClick={(event) => event.target === event.currentTarget && closeLogin()}
-      >
-        <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
-          <button className="modal-close mono" type="button" onClick={closeLogin}>Close</button>
-          <span className="wordmark">Nuluvium</span>
-          {phrase?.mode === "choose" ? (
-            <>
-              <h2 className="title" id="login-title">Set up your keys on this device</h2>
-              <p className="modal-lead">Your Nuluvium keys are made here and protected by a recovery phrase that only you keep. Privy, our login provider, never sees it.</p>
-              <div className="modal-options">
-                <button type="button" ref={firstOption} disabled={busy} onClick={() => void startNewPhrase()}><span>First time: make new keys</span><span className="chip">01</span></button>
-                <button type="button" disabled={busy} onClick={() => { setLoginError(null); setPhrase({ mode: "restore", text: "" }); }}><span>I have a recovery phrase</span><span className="chip">02</span></button>
-              </div>
-            </>
-          ) : phrase?.mode === "new" ? (
-            <>
-              <h2 className="title" id="login-title">Write down your recovery phrase</h2>
-              <p className="modal-lead">These 12 words are your Nuluvium keys. You need them to log in on another device or after clearing this browser. Without them your balance cannot be recovered, by us or anyone.</p>
-              <pre className="code" style={{ marginTop: "1rem", whiteSpace: "pre-wrap" }}><code>{phrase.phrase}</code></pre>
-              <label className="fine" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <input type="checkbox" checked={phrase.saved} onChange={(event) => setPhrase({ ...phrase, saved: event.target.checked })} />
-                I wrote the 12 words down and keep them somewhere safe.
-              </label>
-              <div className="modal-options">
-                <button type="button" ref={firstOption} disabled={busy || !phrase.saved} onClick={() => void applyPhrase(phrase.phrase)}><span>{busy ? "Saving…" : "Continue"}</span><span className="chip">Unlock</span></button>
-              </div>
-            </>
-          ) : phrase?.mode === "restore" ? (
-            <>
-              <h2 className="title" id="login-title">Enter your recovery phrase</h2>
-              <p className="modal-lead">The 12 words you wrote down when you first logged in, in order, separated by spaces.</p>
-              <textarea
-                className="code"
-                style={{ display: "block", width: "100%", minHeight: "6rem", marginTop: "1rem", border: 0, resize: "vertical" }}
-                value={phrase.text}
-                onChange={(event) => setPhrase({ mode: "restore", text: event.target.value })}
-                aria-label="Recovery phrase"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <div className="modal-options">
-                <button type="button" disabled={busy || !phrase.text.trim()} onClick={() => void applyPhrase(phrase.text)}><span>{busy ? "Checking…" : "Restore my keys"}</span><span className="chip">Unlock</span></button>
-                <button type="button" disabled={busy} onClick={() => { setLoginError(null); setPhrase({ mode: "choose" }); }}><span>Back</span><span className="chip">02</span></button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="title" id="login-title">Unlocking</h2>
-              <p className="modal-lead">{step ?? (busy ? "Getting your wallet ready…" : "Log in with email or a wallet. Your Nuluvium keys are made in this browser.")}</p>
-              {loginError === "Connect your wallet to unlock." ? (
-                <div className="modal-options">
-                  <button type="button" ref={firstOption} onClick={() => privy.connectWallet()}><span>Connect your wallet</span><span className="chip">01</span></button>
-                </div>
-              ) : !busy && !privy.authenticated ? (
-                <div className="modal-options">
-                  <button type="button" ref={firstOption} onClick={() => privy.login()}><span>Log in</span><span className="chip">01</span></button>
-                </div>
-              ) : null}
-            </>
-          )}
-          {loginError ? <p className="fine" role="alert">{loginError}</p> : null}
-          <p className="fine">Testnet: test tokens only. Login by Privy: it knows your email and login wallet, never your Nuluvium keys or fresh addresses. Stock tokens are not available to US persons.</p>
-        </div>
-      </div>
+      {!session && screen ? (
+        <LoginScreen
+          privy={privy}
+          phrase={phrase}
+          setPhrase={setPhrase}
+          unlocking={unlockWanted}
+          busy={busy}
+          step={step}
+          error={loginError}
+          setError={setLoginError}
+          onBegin={() => {
+            setLoginError(null);
+            setUnlockWanted(true);
+          }}
+          onNewPhrase={() => void startNewPhrase()}
+          onApplyPhrase={(text) => void applyPhrase(text)}
+          onBrowse={closeLogin}
+        />
+      ) : null}
       <div className={toastMessage ? "toast show" : "toast"} role="status" aria-live="polite">
         {toastMessage}
         {toastMessage && toastTx ? (
