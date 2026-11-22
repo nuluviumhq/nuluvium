@@ -10,7 +10,11 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
     // Video goes through the Worker so Safari gets byte ranges (lib/ranges.ts).
-    "run_worker_first": ["/assets/*.mp4"]
+    "run_worker_first": ["/assets/*.mp4"],
+    // Required by OpenNext 1.20.18+ with run_worker_first: public files only at their exact path,
+    // so nothing can bypass the middleware through trailing-slash or not-found handling.
+    "html_handling": "none",
+    "not_found_handling": "none"
   },
   // 600 calls a minute per visitor on /api/rpc (a balance read needs about 40 to 60).
   "ratelimits": [{ "name": "RPC_LIMITER", "namespace_id": "1101", "simple": { "limit": 600, "period": 60 } }],
