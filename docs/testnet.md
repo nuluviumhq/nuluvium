@@ -430,6 +430,16 @@ stays live and unchanged until the clients move.
 - Checked with eth_call: `activeRelayers()` returns both with 1,000 tNLV; registry and Router v2
   owner = deployer, pendingOwner = Safe; `poolFee(MSTK)` = 0 on v2; Router v1 owner still the Safe.
 
+**Clients on Router v2 (2026-11-23):** Safe batch executed by both signers
+([tx](https://explorer.testnet.chain.robinhood.com/tx/0xf716a58c926feccb6bea7723ba76582b52147d2f7928b658431f3974461eea51)):
+Router v2 and RelayerRegistry owner = Safe, `poolFee(MSTK)` = 500 on v2. Relayers 1 and 2 deployed with
+`ROUTER` = v2 and the registry check; `/quote` shows `active: true`, gas fee 0.10 and `protocolFeeBps` 10.
+One 3 tUSDG piece through each with the SDK (relayer list fixed to one URL per piece):
+[relayer 1](https://explorer.testnet.chain.robinhood.com/tx/0x8bc29742f269bcc7183f6d406faf2ae80860e5ed499b477be9b0c10f113ae6b0),
+[relayer 2](https://explorer.testnet.chain.robinhood.com/tx/0xa2b0773a7c127d2784a2c16be3a1ee97315ca52f8f4675b3d9e4d727d4fd0eab).
+Each `Swapped`: amountIn 3,000,000, gas fee 100,000, protocol fee 3,000 (0.1%), amountOut 0.016094 MSTK
+(= 2.897 tUSDG at 180), `relayer` = the sending relayer.
+
 **What clients need** (SDK, MCP, relayer, web; the nlv-clients session):
 - Router v2 address in place of v1 for new pieces. EIP-712 domain `name "Nuluvium Router"`,
   `version "2"`, chain 46630, verifyingContract = Router v2. `Order` struct and typehash unchanged;
