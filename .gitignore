@@ -11,3 +11,7 @@ contracts/broadcast/*/31337/
 # npm package build output (mcp/)
 mcp/dist/
 mcp/LICENSE
+
+# npm package build output (ai-sdk/)
+ai-sdk/dist/
+ai-sdk/LICENSE

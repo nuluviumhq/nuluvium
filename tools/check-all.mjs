@@ -14,6 +14,8 @@ const steps = [
   ["sdk: tests", "sdk", "npm test"],
   ["mcp: typecheck", "mcp", "npm run typecheck"],
   ["mcp: tests", "mcp", "npm test"],
+  ["ai-sdk: typecheck", "ai-sdk", "npm run typecheck"],
+  ["ai-sdk: tests", "ai-sdk", "npm test"],
   ["relayer: tests", "relayer", "npm test"],
   ["asp: tests", "asp", "npm test"],
   ["stats: tests", "stats", "npm test"],

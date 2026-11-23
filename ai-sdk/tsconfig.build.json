@@ -1,0 +1,6 @@
+{
+  // Build for the npm package: plain JavaScript and type declarations in dist/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "declaration": true, "rootDir": "src", "outDir": "dist", "sourceMap": false },
+  "include": ["src"]
+}

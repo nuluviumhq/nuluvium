@@ -13,6 +13,7 @@ export const DOC_PAGES = [
   { slug: "orders", title: "Placing an order" },
   { slug: "how-it-works", title: "How it works" },
   { slug: "agents", title: "Agents (MCP)" },
+  { slug: "agents/ai-sdk", title: "Vercel AI SDK" },
   { slug: "fees-and-limits", title: "Fees and limits" },
   { slug: "contracts", title: "Contracts" },
   { slug: "security", title: "Security and risks" },

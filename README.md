@@ -46,6 +46,7 @@ no server stores the link between a user and their fresh addresses.
 | `faucet/` | Testnet faucet, a Cloudflare Worker at faucet.nuluvium.com: a little test ETH (only for a wallet with almost none) and 100 test USDG, once a day per wallet. |
 | `sdk/` | `@nuluvium/sdk` in TypeScript: keys, notes rebuilt from the chain, proofs, planning, routing, ragequit and sells. |
 | `mcp/` | MCP server for AI agents (stdio), runs on the agent's machine. |
+| `ai-sdk/` | `@nuluvium/ai-sdk`: the MCP server's tools for the Vercel AI SDK (`generateText({ tools })`). |
 | `web/` | Site, docs and web app: Next.js on Cloudflare Workers (OpenNext). |
 | `testnet/` | Scripts that drove the testnet runs, with their records in `testnet/runs/`. |
 | `docs/` | Technical notes: `router.md`, `sdk.md`, `mcp.md`, `testnet.md` (addresses, runs, findings). |
@@ -63,7 +64,7 @@ cd nuluvium
 Everything at once (lint, every typecheck and test suite; CI runs the same):
 
 ```bash
-npm ci && for p in contracts sdk mcp relayer asp stats faucet web; do (cd $p && npm ci); done
+npm ci && for p in contracts sdk mcp ai-sdk relayer asp stats faucet web; do (cd $p && npm ci); done
 npm run check
 ```
 
@@ -98,6 +99,8 @@ cd web && npm install && npm run dev
 The MCP server is on npm as [`@nuluvium/mcp`](https://www.npmjs.com/package/@nuluvium/mcp). Once:
 `npx -y @nuluvium/mcp --prepare` (installs it and downloads the circuit files), then add
 `"command": "npx", "args": ["-y", "@nuluvium/mcp"]` to your MCP client (setup in [mcp/README.md](mcp/README.md)).
+With the Vercel AI SDK, [`@nuluvium/ai-sdk`](ai-sdk/README.md) starts the same server and returns its tools
+for `generateText({ tools })` (guide: [nuluvium.com/docs/agents/ai-sdk](https://nuluvium.com/docs/agents/ai-sdk)).
 Give the agent its own testnet mnemonic in its environment, never in a file:
 
 ```bash

@@ -46,28 +46,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [sdk, mcp, relayer, asp, stats, faucet]
+        package: [sdk, mcp, ai-sdk, relayer, asp, stats, faucet]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: install the SDK too (the MCP server imports its source)
-        if: matrix.package == 'mcp'
+        if: matrix.package == 'mcp' || matrix.package == 'ai-sdk'
         run: npm ci
         working-directory: sdk
+      - name: install the MCP server too (the ai-sdk tests run it from source)
+        if: matrix.package == 'ai-sdk'
+        run: npm ci
+        working-directory: mcp
       - run: npm ci
         working-directory: ${{ matrix.package }}
       - name: typecheck
-        if: matrix.package == 'sdk' || matrix.package == 'mcp'
+        if: matrix.package == 'sdk' || matrix.package == 'mcp' || matrix.package == 'ai-sdk'
         run: npm run typecheck
         working-directory: ${{ matrix.package }}
       - run: npm test
         working-directory: ${{ matrix.package }}
       - name: npm package contents
-        if: matrix.package == 'mcp'
+        if: matrix.package == 'mcp' || matrix.package == 'ai-sdk'
         run: npm pack --dry-run
-        working-directory: mcp
+        working-directory: ${{ matrix.package }}
 
   web:
     runs-on: ubuntu-latest
