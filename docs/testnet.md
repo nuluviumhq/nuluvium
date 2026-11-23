@@ -388,8 +388,9 @@ cancel and the non-listed-token refusal as before. The web app uses the same SDK
 
 ## Relayer model: tNLV, RelayerRegistry, Router v2 (2026-11-23)
 
-Design and tests: `docs/router.md` ("Router v2, the relayer registry and tNLV"). **Status: built and
-tested, not deployed yet** (waits for the user's OK). Router v1 `0x3287C2947f137c20c8BfeB628f800D23b8e5D155`
+Design and tests: `docs/router.md` ("Router v2, the relayer registry and tNLV"). **Status: deployed
+2026-11-23; relayers 1 and 2 bonded; Safe batch prepared and simulated, waiting for both Safe
+signatures** (until then the Safe is pending owner and MSTK is not listed on v2, so v2 cannot swap yet). Router v1 `0x3287C2947f137c20c8BfeB628f800D23b8e5D155`
 stays live and unchanged until the clients move.
 
 **Deploy** (from `contracts/`, deployer key; dry run on 2026-11-23: 6.2M gas, about 0.00012 test ETH):
@@ -405,14 +406,29 @@ stays live and unchanged until the clients move.
 3. Each relayer, with its own key: `RELAYER_URL=https://relayer.nuluvium.com forge script script/BondRelayerTestnet.s.sol --rpc-url $TESTNET_RPC_URL --broadcast --private-key <relayer key>`
    (claim 1,000 tNLV, approve, register). Relayer 2 uses `https://relayer2.nuluvium.com`.
 
-**Addresses** (filled in after the deploy; also in `contracts/deployments/46630-nlv.json`):
+**Addresses** (also in `contracts/deployments/46630-nlv.json`):
 
 | Contract | Address |
 |---|---|
-| TestNLV (tNLV) | not deployed yet |
-| RelayerRegistry | not deployed yet |
-| NuluviumRouterV2 | not deployed yet |
+| TestNLV (tNLV) | [0xfcff1d517C41b122Fa5Ec711e569726B8E869660](https://explorer.testnet.chain.robinhood.com/address/0xfcff1d517C41b122Fa5Ec711e569726B8E869660) |
+| RelayerRegistry | [0xcF69fE69E3B273f66F589c5f912f347144316bB0](https://explorer.testnet.chain.robinhood.com/address/0xcF69fE69E3B273f66F589c5f912f347144316bB0) |
+| NuluviumRouterV2 | [0x2A97D783811ADa610223CeBD56d77d72306F0B9e](https://explorer.testnet.chain.robinhood.com/address/0x2A97D783811ADa610223CeBD56d77d72306F0B9e) |
 | Treasury (protocol fee) | Safe 0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5 |
+
+**Run (2026-11-23):**
+- Deploy from the deployer: [TestNLV](https://explorer.testnet.chain.robinhood.com/tx/0xa39f066bec3605946e52118b62e6a0e4eeba63cb74113b2d2a1c54df1110e541),
+  [RelayerRegistry](https://explorer.testnet.chain.robinhood.com/tx/0x64587d142a24625a8d879277eacb5d3015b36a5ff79bcfd8775b1c71c85c37e8),
+  [NuluviumRouterV2](https://explorer.testnet.chain.robinhood.com/tx/0xcbf5afb68e711876f5c3cb76d6158a84cb816c177f5c3617efa7da14e53a3543),
+  transferOwnership(Safe) on [the registry](https://explorer.testnet.chain.robinhood.com/tx/0x184e0e88de6b2dd7f5aeae1fd7e5fadaa657b01f00ac7d20d54e9ac260da28b0)
+  and [Router v2](https://explorer.testnet.chain.robinhood.com/tx/0x5a2d3c6cb063db35521fcb43941d0b11418a1812771c4a64d31eec3034e29444).
+- Safe batch `contracts/deployments/46630-nlv-safe-batch.json`: all 3 calls simulated "ok as the Safe"
+  on live state (owners = Safe, MSTK at 0.05% after it). Not signed yet.
+- Relayer 1 bonded 1,000 tNLV with its own key ([claim](https://explorer.testnet.chain.robinhood.com/tx/0xad29c07b3ddf97d3bdcbce7cc1b8988384e73b41e4d937bb36139255aa7dc836),
+  [register](https://explorer.testnet.chain.robinhood.com/tx/0x9c3821993fd4f2666f86283ae484f0d2c5c9605f4e83213c7dc68e1894961580), URL https://relayer.nuluvium.com);
+  relayer 2 the same ([claim](https://explorer.testnet.chain.robinhood.com/tx/0x193985c8108692c10412dd74ac412f822a2fcb38ca2622ec510f54c9b4c57ebc),
+  [register](https://explorer.testnet.chain.robinhood.com/tx/0xfe2be2c191b3844cc6ddb7a74e3a70ad8b693fa07cbc443b755e646f6bc88994), URL https://relayer2.nuluvium.com).
+- Checked with eth_call: `activeRelayers()` returns both with 1,000 tNLV; registry and Router v2
+  owner = deployer, pendingOwner = Safe; `poolFee(MSTK)` = 0 on v2; Router v1 owner still the Safe.
 
 **What clients need** (SDK, MCP, relayer, web; the nlv-clients session):
 - Router v2 address in place of v1 for new pieces. EIP-712 domain `name "Nuluvium Router"`,

@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "chainId": "46630",
+  "createdAt": 1795427323000,
+  "meta": {
+    "name": "Nuluvium relayer model setup (testnet)",
+    "description": "Accept ownership of RelayerRegistry and NuluviumRouterV2; list MSTK on Router v2 at 0.05%",
+    "txBuilderVersion": "1.18.0",
+    "createdFromSafeAddress": "0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5",
+    "createdFromOwnerAddress": ""
+  },
+  "transactions": [
+    {"to": "0xcF69fE69E3B273f66F589c5f912f347144316bB0", "value": "0", "data": "0x79ba5097", "contractMethod": null, "contractInputsValues": null, "_decoded": "RelayerRegistry.acceptOwnership()"},
+    {"to": "0x2A97D783811ADa610223CeBD56d77d72306F0B9e", "value": "0", "data": "0x79ba5097", "contractMethod": null, "contractInputsValues": null, "_decoded": "NuluviumRouterV2.acceptOwnership()"},
+    {"to": "0x2A97D783811ADa610223CeBD56d77d72306F0B9e", "value": "0", "data": "0xf0b20dcd000000000000000000000000f2a0289ec25994dc7d22461afd1df3b818a0e08800000000000000000000000000000000000000000000000000000000000001f4", "contractMethod": null, "contractInputsValues": null, "_decoded": "NuluviumRouterV2.setPoolFee(MSTK, 500)"}
+  ]
+}

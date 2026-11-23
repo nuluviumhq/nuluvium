@@ -1,0 +1,12 @@
+{
+  "deployer": "0xbdED052e3Ebf14c6631497F867CB15fDb455170b",
+  "minBond": "1000000000000000000000",
+  "pendingOwner": "0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5",
+  "protocolFeeBps": 10,
+  "relayerRegistry": "0xcF69fE69E3B273f66F589c5f912f347144316bB0",
+  "relayerShareBps": 5000,
+  "routerV2": "0x2A97D783811ADa610223CeBD56d77d72306F0B9e",
+  "testNlv": "0xfcff1d517C41b122Fa5Ec711e569726B8E869660",
+  "treasury": "0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5",
+  "unbondDelaySeconds": 604800
+}
