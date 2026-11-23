@@ -385,3 +385,57 @@ relayers): 6 USDG in 3 pieces over 3 minutes, all done first time, each at the q
 [piece 2](https://explorer.testnet.chain.robinhood.com/tx/0x96dec9f33fba864919db6625db5b5b4dfbbb99e1173742f76687c572dc3ffd75) via relayer 2;
 cancel and the non-listed-token refusal as before. The web app uses the same SDK calls (`quotedBuy`,
 `sellAtQuote`); not yet clicked through in a browser.
+
+## Relayer model: tNLV, RelayerRegistry, Router v2 (2026-11-23)
+
+Design and tests: `docs/router.md` ("Router v2, the relayer registry and tNLV"). **Status: built and
+tested, not deployed yet** (waits for the user's OK). Router v1 `0x3287C2947f137c20c8BfeB628f800D23b8e5D155`
+stays live and unchanged until the clients move.
+
+**Deploy** (from `contracts/`, deployer key; dry run on 2026-11-23: 6.2M gas, about 0.00012 test ETH):
+1. `forge script script/DeployNlvTestnet.s.sol --rpc-url $TESTNET_RPC_URL --broadcast --private-key $TESTNET_DEPLOYER_KEY`
+   deploys TestNLV, RelayerRegistry (min bond 1,000 tNLV) and NuluviumRouterV2 (same tUSDG,
+   Entrypoint and mock swap router as v1; treasury = the Safe), calls `transferOwnership(Safe)` on
+   both and writes `deployments/46630-nlv.json`.
+2. `forge script script/NlvSafeBatchTestnet.s.sol --rpc-url $TESTNET_RPC_URL` (no broadcast) simulates
+   the Safe batch in order as the Safe and writes `deployments/46630-nlv-safe-batch.json` for the
+   Transaction Builder: `RelayerRegistry.acceptOwnership()`, `NuluviumRouterV2.acceptOwnership()`,
+   `NuluviumRouterV2.setPoolFee(MSTK, 500)`. Both Safe signers sign it in app.safe.global; nobody
+   signs it with the deployer. Before deploy, the same batch is simulated in `test/NlvTestnetFork.t.sol`.
+3. Each relayer, with its own key: `RELAYER_URL=https://relayer.nuluvium.com forge script script/BondRelayerTestnet.s.sol --rpc-url $TESTNET_RPC_URL --broadcast --private-key <relayer key>`
+   (claim 1,000 tNLV, approve, register). Relayer 2 uses `https://relayer2.nuluvium.com`.
+
+**Addresses** (filled in after the deploy; also in `contracts/deployments/46630-nlv.json`):
+
+| Contract | Address |
+|---|---|
+| TestNLV (tNLV) | not deployed yet |
+| RelayerRegistry | not deployed yet |
+| NuluviumRouterV2 | not deployed yet |
+| Treasury (protocol fee) | Safe 0xDe29697FB1c56422A23DCFb8b9e8689c0A0bfCB5 |
+
+**What clients need** (SDK, MCP, relayer, web; the nlv-clients session):
+- Router v2 address in place of v1 for new pieces. EIP-712 domain `name "Nuluvium Router"`,
+  `version "2"`, chain 46630, verifyingContract = Router v2. `Order` struct and typehash unchanged;
+  the permit spender is Router v2.
+- Fees: `minAmountOut` must be net of the gas fee **and** the protocol fee. Buy: quote
+  `amountIn - fee - protocolFeeFor(amountIn)`. Sell: quote the gross USDG out `g`, then net =
+  `g - fee - protocolFeeFor(g)`. `protocolFeeFor(uint256) pure returns (uint256)` = amount × 10 / 10,000.
+  Constants: `PROTOCOL_FEE_BPS() = 10`, `RELAYER_SHARE_BPS() = 5000`, `TREASURY()`, `REGISTRY()`.
+- `maxFee` still caps the gas fee only.
+- Event `Swapped(address indexed owner, uint256 indexed nonce, address tokenIn, address tokenOut,
+  uint256 amountIn, uint256 amountOut, uint256 fee, uint256 protocolFee, address indexed relayer)`.
+- New errors: `NotARegisteredRelayer(address)`, `TooLittleReceived(uint256 amountOut, uint256 minAmountOut)`.
+- Relayer list: `RelayerRegistry.activeRelayers() view returns ((address relayer, string url, uint256 bond)[])`;
+  `isActive(address) view returns (bool)`. A relayer must check `isActive(own key)` before taking a
+  piece: v2 reverts for an unregistered, leaving or removed relayer.
+- tNLV: `claim()` (1,000 tNLV, once a day per address), `CLAIM_AMOUNT()`, `CLAIM_COOLDOWN()`,
+  `lastClaimAt(address)`. Registry: `register(string url, uint256 amount)`, `addBond(uint256)`,
+  `setUrl(string)`, `requestUnbond()`, `withdraw()`, `relayerOf(address)` → `(bond, unbondAvailableAt, active, url)`,
+  `MIN_BOND()`, `UNBOND_DELAY()` (604,800 s). ABIs: `contracts/out/{TestNLV,RelayerRegistry,NuluviumRouterV2}.sol/*.json`
+  after `forge build`.
+
+**Honest limits** (for docs copy): slashing and removal are decisions of the Safe signers in v1, not
+automatic; tNLV has no value, so on testnet the bond shows the mechanism and gates nothing
+economically; registration is open, and the Safe's removal is the control. Traders never hold, pay or
+prove tNLV. Only relayer operators get a fee share; nothing is paid to holders.
