@@ -30,12 +30,12 @@ export const MAX_BODY_BYTES = 64 * 1024;
 export const MAX_LOG_RANGE = 10_000n; // Alchemy's limit for eth_getLogs
 
 /**
- * Contracts whose logs are served: the pool, the Router, and the Entrypoint for its RootUpdated
+ * Contracts whose logs are served: the pool, the Router (v2 and the earlier ones, for history), and the Entrypoint for its RootUpdated
  * events (the SDK reads the latest approved-set CID from them when the ASP's status lags the chain).
  * Passed in by the route, so this file needs no SDK import and runs under node --test.
  */
-export const logAddresses = (config: { pool: string; router: string; entrypoint: string }) =>
-  new Set([config.pool, config.router, config.entrypoint].map((address) => address.toLowerCase()));
+export const logAddresses = (config: { pool: string; router: string; previousRouters?: readonly string[]; entrypoint: string }) =>
+  new Set([config.pool, config.router, ...(config.previousRouters ?? []), config.entrypoint].map((address) => address.toLowerCase()));
 
 /** Web pages allowed to call the proxy from a browser, besides the site itself. */
 const PARTNER_ORIGINS = new Set(["https://auth.privy.io"]); // Privy's embedded wallet runs in its iframe

@@ -16,7 +16,8 @@ export interface Piece {
   tx?: string;
   fresh?: string;
   received?: string; // token units
-  fee?: string;
+  fee?: string; // relayer gas fee, tUSDG units
+  protocolFee?: string; // Router v2 protocol fee (0.1%), tUSDG units; absent on earlier pieces
   sentAt?: number;
   error?: string;
 }

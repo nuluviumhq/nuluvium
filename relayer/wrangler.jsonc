@@ -26,7 +26,13 @@
     "RELAYER_NAME": "relayer 1",
     "CHAIN_ID": "46630",
     "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
-    "ROUTER": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
+    // Router v2 (protocol fee 0.1%, half to the sending relayer) and the RelayerRegistry it checks.
+    // Router v1 0x3287C2947f137c20c8BfeB628f800D23b8e5D155 stays deployed for history.
+    "ROUTER": "0x2A97D783811ADa610223CeBD56d77d72306F0B9e",
+    "REGISTRY": "0xcF69fE69E3B273f66F589c5f912f347144316bB0",
+    // Router v2 constants PROTOCOL_FEE_BPS and RELAYER_SHARE_BPS (shown in /quote, used in the bound).
+    "PROTOCOL_FEE_BPS": "10",
+    "RELAYER_SHARE_BPS": "5000",
     // QuoterV2 for the price-protection bound. Testnet: stand-in for the fixed-price mock router
     // (contracts/deployments/46630-quoter.json). Mainnet: Uniswap QuoterV2.
     "QUOTER": "0x42093B3DAb22760EF67849984A81084E564f728e",
@@ -58,7 +64,10 @@
         "RELAYER_NAME": "relayer 2",
         "CHAIN_ID": "46630",
         "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
-        "ROUTER": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
+        "ROUTER": "0x2A97D783811ADa610223CeBD56d77d72306F0B9e",
+        "REGISTRY": "0xcF69fE69E3B273f66F589c5f912f347144316bB0",
+        "PROTOCOL_FEE_BPS": "10",
+        "RELAYER_SHARE_BPS": "5000",
         "QUOTER": "0x42093B3DAb22760EF67849984A81084E564f728e",
         "MAX_SLIPPAGE_BPS": "500",
         "GAS_PER_PIECE": "900000",

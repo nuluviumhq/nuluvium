@@ -13,8 +13,8 @@ const ALL_CONTRACTS = [...CONTRACTS, { name: "Deposit proof verifier (ragequit)"
 
 const SERVICES = [
   { name: "Approved-set provider", url: "https://asp.nuluvium.com", does: "Screens deposits, publishes the approved set, posts its root" },
-  { name: "Relayer 1 (main)", url: "https://relayer.nuluvium.com", does: "Quotes the fee (GET /quote), sends pieces (POST /piece)" },
-  { name: "Relayer 2 (fallback)", url: "https://relayer2.nuluvium.com", does: "Same API; the app and SDK use it when relayer 1 does not answer" },
+  { name: "Relayer 1", url: "https://relayer.nuluvium.com", does: "Bonded in the registry. Quotes the fees (GET /quote), sends pieces (POST /piece) and sales (POST /sell)" },
+  { name: "Relayer 2", url: "https://relayer2.nuluvium.com", does: "Same API, own key and bond; the app and SDK try the registry's relayers in random order and fall back to another" },
 ];
 
 export default function Page() {
@@ -34,7 +34,8 @@ export default function Page() {
             </tbody>
           </table>
         </div></div>
-        <p>The Privacy Pools v1.3.0 contracts (pool, Entrypoint, verifiers) are deployed unchanged. The Router is Nuluvium&#39;s own: it checks the order signed by the fresh address, swaps on Uniswap v3 for allowlisted tokens only, and can be paused by its owner.</p>
+        <p>The Privacy Pools v1.3.0 contracts (pool, Entrypoint, verifiers) are deployed unchanged. The Router is Nuluvium&#39;s own: it checks the order signed by the fresh address, swaps on Uniswap v3 for allowlisted tokens only, and can be paused by its owner. Router v2 also takes the 0.1% protocol fee (half to the sending relayer, half to the treasury Safe) and only accepts pieces from relayers active in the relayer registry. Router v1 sent the pieces until 23 November 2026 and stays on chain for their history.</p>
+        <p>The relayer registry holds the relayers&#39; tNLV bonds and their URLs, which the app, SDK and MCP server read to pick a relayer. Unbonding waits 7 days. The Safe can remove a relayer and slash its bond; in v1 that is the signers&#39; decision, not automatic. tNLV is a faucet test token with no value; traders never need it.</p>
       </DocSection>
       <DocSection n={2} title="Services">
         <div className="ledger-box"><div className="scroll-x">

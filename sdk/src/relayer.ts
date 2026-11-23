@@ -1,8 +1,11 @@
-// Talks to the Nuluvium relayer and signs what the fresh address must sign (order + permit).
+// Talks to the Nuluvium relayers and signs what the fresh address must sign (order + permit).
+// Relayers come from the RelayerRegistry (bonded with NLV; tNLV on testnet); orders go to Router v2,
+// which pays the sending relayer its gas fee plus half of the 0.1% protocol fee (the rest to the
+// treasury Safe). Traders never hold or pay NLV: both fees come out of the USDG side of the piece.
 
-import { parseSignature, type Address, type Hex, type PublicClient } from "viem";
+import { parseAbi, parseSignature, type Address, type Hex, type PublicClient } from "viem";
 import type { HDAccount } from "viem/accounts";
-import { erc20Abi } from "./chain.ts";
+import { erc20Abi, publicClientFor } from "./chain.ts";
 import type { NetworkConfig } from "./config.ts";
 import type { FormattedProof } from "./proof.ts";
 
@@ -11,8 +14,14 @@ export interface Quote {
   url: string;
   router: Address;
   relayer: Address;
+  /** Relayer gas fee for one piece (USDG units). The protocol fee comes on top: `protocolFeeFor`. */
   fee: bigint;
   gasCost: bigint;
+}
+
+/** Protocol fee the Router takes from `usdgAmount` (Router v2 protocolFeeFor: rounded down). */
+export function protocolFeeFor(config: NetworkConfig, usdgAmount: bigint): bigint {
+  return (usdgAmount * config.protocolFeeBps) / 10_000n;
 }
 
 export interface Order {
@@ -33,6 +42,61 @@ export class RelayerError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+/* ------------------------------------------------------------------ relayer registry */
+
+const registryAbi = parseAbi([
+  "struct ListedRelayer { address relayer; string url; uint256 bond; }",
+  "function activeRelayers() view returns (ListedRelayer[])",
+]);
+
+/** A relayer to try: its URL and, when it came from the registry, the address it bonded. */
+export interface RelayerEntry {
+  url: string;
+  address?: Address;
+}
+
+/** How long a registry read is reused (per process or per tab). */
+const REGISTRY_CACHE_MS = 5 * 60_000;
+let registryCache: { key: string; at: number; entries: RelayerEntry[] } | null = null;
+
+/** Registry rows as relayer entries: https URLs only, no trailing slash, one entry per URL. */
+export function registryEntries(rows: ReadonlyArray<{ relayer: Address; url: string }>): RelayerEntry[] {
+  const seen = new Set<string>();
+  const entries: RelayerEntry[] = [];
+  for (const row of rows) {
+    const url = row.url.trim().replace(/\/+$/, "");
+    if (!/^https:\/\/[^\s/?#]+(\/[^\s?#]*)?$/.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    entries.push({ url, address: row.relayer });
+  }
+  return entries;
+}
+
+/**
+ * The relayers to try: the active ones in the RelayerRegistry, or `config.relayerUrls` when the
+ * registry is unset, cannot be read or lists none (so a registry outage does not stop pieces).
+ */
+export async function listRelayers(config: NetworkConfig, client?: PublicClient, now = Date.now()): Promise<RelayerEntry[]> {
+  const fallback = config.relayerUrls.map((url) => ({ url }));
+  if (!config.registry) return fallback;
+  const key = `${config.chainId}:${config.registry}:${config.rpcUrl}`;
+  if (registryCache?.key === key && now - registryCache.at < REGISTRY_CACHE_MS) return registryCache.entries;
+  try {
+    const rows = await (client ?? publicClientFor(config)).readContract({ address: config.registry, abi: registryAbi, functionName: "activeRelayers" });
+    const entries = registryEntries(rows);
+    if (entries.length === 0) return fallback;
+    registryCache = { key, at: now, entries };
+    return entries;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Forgets the cached registry read (tests, or after a relayer was removed). */
+export function clearRelayerCache(): void {
+  registryCache = null;
 }
 
 /* ------------------------------------------------------------------ several relayers */
@@ -68,8 +132,11 @@ export function relayerOrder(urls: string[], { now = Date.now(), random = Math.r
   return [...shuffled.filter((url) => !recentlyFailed(url)), ...shuffled.filter(recentlyFailed)];
 }
 
-/** Fee quote from one relayer. Checks it sends to the same Router as `config`. */
-export async function quoteFrom(config: NetworkConfig, url: string): Promise<Quote> {
+/**
+ * Fee quote from one relayer. Checks it sends to the same Router as `config` and, for a relayer
+ * from the registry, that it signs with the address that bonded (the Router refuses any other).
+ */
+export async function quoteFrom(config: NetworkConfig, url: string, expectedRelayer?: Address): Promise<Quote> {
   let response: Response;
   try {
     response = await fetch(`${url}/quote`, { signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS) });
@@ -77,17 +144,23 @@ export async function quoteFrom(config: NetworkConfig, url: string): Promise<Quo
     throw new RelayerError(0, `relayer ${url} did not answer`);
   }
   if (!response.ok) throw new RelayerError(response.status, `relayer ${url} quote failed`);
-  const body = (await response.json()) as { router: Address; relayer: Address; fee: string; gasCost: string };
+  const body = (await response.json()) as { router: Address; relayer: Address; fee: string; gasCost: string; active?: boolean };
   if (body.router.toLowerCase() !== config.router.toLowerCase()) throw new RelayerError(0, `relayer ${url} uses a different Router`);
+  if (expectedRelayer && body.relayer.toLowerCase() !== expectedRelayer.toLowerCase()) {
+    throw new RelayerError(0, `relayer ${url} is not the address registered for it`);
+  }
+  if (body.active === false) throw new RelayerError(0, `relayer ${url} is not active in the registry`);
   return { url, router: body.router, relayer: body.relayer, fee: BigInt(body.fee), gasCost: BigInt(body.gasCost) };
 }
 
 /** A quote from the first relayer that answers, in `relayerOrder`. */
-export async function getQuote(config: NetworkConfig): Promise<Quote> {
+export async function getQuote(config: NetworkConfig, client?: PublicClient): Promise<Quote> {
   const reasons: string[] = [];
-  for (const url of relayerOrder(config.relayerUrls)) {
+  const entries = await listRelayers(config, client);
+  const addressOf = new Map(entries.map((entry) => [entry.url, entry.address]));
+  for (const url of relayerOrder(entries.map((entry) => entry.url))) {
     try {
-      const quote = await quoteFrom(config, url);
+      const quote = await quoteFrom(config, url, addressOf.get(url));
       markRelayerOk(url);
       return quote;
     } catch (error) {
@@ -109,15 +182,17 @@ interface Sent {
 /**
  * Posts a signed piece or sell to `quote`'s relayer; if that one is down or refuses, to the others.
  * The same signatures and proof work with any relayer: the withdrawal's relay fee is 0, and the
- * Router pays its fee to whoever sends the transaction. Another relayer is asked for its own quote
- * first (same Router, fee within the signed maxFee).
+ * Router pays its fee to whoever sends the transaction (it must be active in the registry). Another
+ * relayer is asked for its own quote first (same Router, fee within the signed maxFee).
  */
 async function postWithFailover(config: NetworkConfig, path: "/piece" | "/sell", body: Record<string, unknown>, quote: Quote, maxFee: bigint): Promise<Sent> {
   const reasons: string[] = [];
-  const others = relayerOrder(config.relayerUrls.filter((url) => url !== quote.url));
+  const entries = await listRelayers(config);
+  const addressOf = new Map(entries.map((entry) => [entry.url, entry.address]));
+  const others = relayerOrder(entries.map((entry) => entry.url).filter((url) => url !== quote.url));
   for (const url of [quote.url, ...others]) {
     try {
-      const fee = url === quote.url ? quote.fee : (await quoteFrom(config, url)).fee;
+      const fee = url === quote.url ? quote.fee : (await quoteFrom(config, url, addressOf.get(url))).fee;
       if (fee > maxFee) throw new RelayerError(0, `relayer ${url} fee is above the signed maximum`);
       let response: Response;
       try {
@@ -146,7 +221,7 @@ const stringFields = (order: Order) => Object.fromEntries(Object.entries(order).
 
 export function signOrder(account: HDAccount, config: NetworkConfig, order: Order): Promise<Hex> {
   return account.signTypedData({
-    domain: { name: "Nuluvium Router", version: "1", chainId: config.chainId, verifyingContract: config.router },
+    domain: { name: "Nuluvium Router", version: "2", chainId: config.chainId, verifyingContract: config.router },
     types: {
       Order: [
         { name: "owner", type: "address" },

@@ -11,7 +11,7 @@ import { freshAccount, type UserKeys } from "./keys.ts";
 import { noteAfterWithdrawal, type Note } from "./notes.ts";
 import type { PlannedPiece } from "./planner.ts";
 import { formatProof, proveWithdrawal } from "./proof.ts";
-import { getQuote, sendPiece, signOrder, signPermit, type Order } from "./relayer.ts";
+import { getQuote, protocolFeeFor, sendPiece, signOrder, signPermit, type Order } from "./relayer.ts";
 
 export interface RoutingContext {
   config: NetworkConfig;
@@ -22,7 +22,7 @@ export interface RoutingContext {
 
 export interface BuyTarget {
   tokenOut: Address;
-  /** Smallest amount of tokenOut the owner accepts for `usdgIn` (after the relayer fee). */
+  /** Smallest amount of tokenOut the owner accepts for `usdgIn` (after the relayer and protocol fees). */
   minAmountOut: (usdgIn: bigint) => Promise<bigint> | bigint;
 }
 
@@ -31,7 +31,10 @@ export interface PieceResult {
   amount: bigint;
   tx: Hex;
   fresh: Address;
+  /** Relayer gas fee the piece paid (USDG units). */
   fee: bigint;
+  /** Protocol fee the piece paid (0.1%; half to the relayer that sent it, half to the treasury Safe). */
+  protocolFee: bigint;
   proofSeconds: number;
   gasUsed: string;
   /** Relayer that sent it. */
@@ -64,8 +67,10 @@ export async function executePiece(
   target: BuyTarget,
 ): Promise<{ result: Omit<PieceResult, "number" | "attempts" | "sentAt">; next: Note }> {
   const { config, keys, client, prover } = ctx;
-  const quote = await getQuote(config);
-  if (amount <= quote.fee) throw new Error("piece smaller than the relayer fee");
+  const quote = await getQuote(config, client);
+  // Router v2 swaps what is left after the relayer gas fee and the protocol fee (0.1% of the piece).
+  const protocolFee = protocolFeeFor(config, amount);
+  if (amount <= quote.fee + protocolFee) throw new Error("piece smaller than the relayer and protocol fees");
   const fresh = freshAccount(keys, note.depositIndex, note.withdrawals);
 
   const [approved, leafLogs] = await Promise.all([fetchApprovedSet(client, config), poolEvents(client, config, "LeafInserted")]);
@@ -89,7 +94,7 @@ export async function executePiece(
     tokenIn: config.usdg,
     tokenOut: target.tokenOut,
     amountIn: amount,
-    minAmountOut: await target.minAmountOut(amount - quote.fee),
+    minAmountOut: await target.minAmountOut(amount - quote.fee - protocolFee),
     maxFee: quote.fee * 2n, // room for the quote to move before the relayer sends
     nonce: randomNonce(),
     deadline,
@@ -101,7 +106,7 @@ export async function executePiece(
 
   const sent = await sendPiece(config, quote, { withdrawal, proof: formatProof(proof), order, orderSignature, permit });
   return {
-    result: { amount, tx: sent.tx, fresh: fresh.address, fee: sent.fee, proofSeconds: seconds, gasUsed: sent.gasUsed, relayerUrl: sent.relayerUrl },
+    result: { amount, tx: sent.tx, fresh: fresh.address, fee: sent.fee, protocolFee, proofSeconds: seconds, gasUsed: sent.gasUsed, relayerUrl: sent.relayerUrl },
     next: noteAfterWithdrawal(keys, note, amount),
   };
 }

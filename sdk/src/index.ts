@@ -4,7 +4,7 @@
 //   planner   random piece sizes and times inside a window
 //   proof     withdrawal proofs (Privacy Pools v1 circuits); Node folder prover in ./node.ts
 //   asp       the approved set, checked against its CID and the on-chain root
-//   relayer   quote, order and permit signatures, piece submission (fails over between relayers)
+//   relayer   relayers from the registry, quote, order and permit signatures, piece submission (fails over)
 //   quote     minimum outputs from a Uniswap v3 quote (QuoterV2) at the Router's fee tier
 //   routing   one piece end to end, or a whole plan on schedule
 //   exit      ragequit a deposit back to its wallet; sell a fresh address's tokens for USDG
@@ -15,7 +15,25 @@ export { changeSecrets, depositSecrets, noteAfterWithdrawal, nullifierHash, reco
 export { planPieces, secureRandom, type PlanInput, type PlannedPiece } from "./planner.ts";
 export { createUrlProver, formatProof, proveWithdrawal, type FormattedProof, type WithdrawalTerms } from "./proof.ts";
 export { cidDigestHex, fetchApprovedSet, rootOf, type ApprovedSet } from "./asp.ts";
-export { RelayerError, getQuote, markRelayerFailed, markRelayerOk, quoteFrom, relayerOrder, sendPiece, sendSell, signOrder, signPermit, type Order, type Quote } from "./relayer.ts";
+export {
+  RelayerError,
+  clearRelayerCache,
+  getQuote,
+  listRelayers,
+  markRelayerFailed,
+  markRelayerOk,
+  protocolFeeFor,
+  quoteFrom,
+  registryEntries,
+  relayerOrder,
+  sendPiece,
+  sendSell,
+  signOrder,
+  signPermit,
+  type Order,
+  type Quote,
+  type RelayerEntry,
+} from "./relayer.ts";
 export { quoteSwap, quotedBuy, quotedSellMinimum, quoterAbi, withSlippage } from "./quote.ts";
 export { executePiece, randomNonce, runPlan, type BuyTarget, type PieceResult, type RoutingContext, type RoutingEvent } from "./routing.ts";
 export { depositUsdg } from "./deposit.ts";

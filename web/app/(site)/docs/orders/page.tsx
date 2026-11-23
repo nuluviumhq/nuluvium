@@ -10,7 +10,7 @@ export default function Page() {
   return (
     <DocsPage slug="orders" variant="timeline" lead="One order, split into pieces and spread over time, each piece from its own fresh address.">
       <DocSection n={1} title="Choose the order">
-        <p>On Trade, pick the token, the amount in tUSDG, the number of pieces (3, 5 or 8) and the time window (10 minutes, 30 minutes, 2 hours or 6 hours). The form shows about what you receive and the relayer fee for all pieces before you route.</p>
+        <p>On Trade, pick the token, the amount in tUSDG, the number of pieces (3, 5 or 8) and the time window (10 minutes, 30 minutes, 2 hours or 6 hours). The form shows about what you receive, the relayer fee for all pieces and the 0.1% protocol fee before you route.</p>
         <p>On the testnet the only token is MSTK, a mock stock at a fixed price of 180 tUSDG.</p>
       </DocSection>
       <DocSection n={2} title="Route it">
@@ -29,7 +29,7 @@ export default function Page() {
       <DocSection n={6} title="Sell and move out">
         <p>Holdings, on the Orders page, lists every fresh address of yours that holds something. It is rebuilt from your keys and the chain, so it also shows pieces sent from another browser.</p>
         <ul>
-          <li>Sell: a fresh address sells all of one stock token for USDG in a single swap. It signs the order and the relayer sends it, so you pay no gas and get no wallet prompt; the relayer fee comes out of the USDG. The USDG stays on that fresh address, and the sale is not linked to you.</li>
+          <li>Sell: a fresh address sells all of one stock token for USDG in a single swap. It signs the order and the relayer sends it, so you pay no gas and get no wallet prompt; the relayer fee and the 0.1% protocol fee come out of the USDG. The USDG stays on that fresh address, and the sale is not linked to you.</li>
           <li>Export key: shows the private key of one fresh address, to import it into a wallet such as Rabby or MetaMask and move what it holds. The key controls only that address. Sending it gas from your own wallet links the two on chain; on testnet, use the faucet.</li>
         </ul>
       </DocSection>

@@ -25,7 +25,7 @@ const sum = (values) => values.reduce((total, value) => total + value, 0n);
  * @param {Array<{label: bigint, depositor: string, value: bigint}>} input.deposits
  * @param {Array<{value: bigint}>} input.withdrawals  Withdrawn events (each one pays a piece through the Router)
  * @param {Array<{value: bigint}>} input.ragequits
- * @param {Array<{tokenIn: string, tokenOut: string, amountIn: bigint, amountOut: bigint, fee: bigint, time: number}>} input.swaps
+ * @param {Array<{tokenIn: string, tokenOut: string, amountIn: bigint, amountOut: bigint, fee: bigint, protocolFee?: bigint, time: number}>} input.swaps
  * @param {string} input.usdg               USDG token address
  * @param {Record<string, string>} input.symbols  lowercase token address → symbol
  * @param {{labels: bigint[], rejected: Array<{label: string, reason: string}>} | null} input.approvedSet
@@ -96,7 +96,13 @@ export function aggregate({ deposits, withdrawals, ragequits, swaps, usdg, symbo
   // 6. Relayer fees: what the relayer took per swap (pieces and sells).
   const relayer = { feesTotal: sum(swaps.map((swap) => swap.fee)), swaps: swaps.length };
 
-  return { crowd, flows, routed, pieceSizes, cleanFunds, relayer };
+  // 7. Protocol fee (Router v2 swaps only): half to the sending relayer, the rest to the treasury.
+  const v2 = swaps.filter((swap) => swap.protocolFee !== undefined && swap.protocolFee !== null);
+  const toRelayers = sum(v2.map((swap) => (BigInt(swap.protocolFee) * 5_000n) / 10_000n));
+  const feesTotal = sum(v2.map((swap) => BigInt(swap.protocolFee)));
+  const protocol = { feesTotal, toRelayers, toTreasury: feesTotal - toRelayers, swaps: v2.length };
+
+  return { crowd, flows, routed, pieceSizes, cleanFunds, relayer, protocol };
 }
 
 /** JSON can't hold bigint: amounts become decimal strings in token units. */

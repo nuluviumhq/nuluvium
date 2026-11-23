@@ -128,7 +128,7 @@ export function Holdings() {
         {pending?.kind === "sell" ? (
           <>
             <ul className="fine">
-              <li>Relayer fee: {pending.fee === null ? "reading…" : `${formatUsdg(pending.fee)} tUSDG`}, taken from what the sale brings. No gas from you and no wallet prompt.</li>
+              <li>Relayer fee: {pending.fee === null ? "reading…" : `${formatUsdg(pending.fee)} tUSDG`}, plus a 0.1% protocol fee, both taken from what the sale brings. No gas from you and no wallet prompt.</li>
               <li>The tUSDG stays on this fresh address. At most 1% below a fresh quote taken when you sell, or the sale does not happen.</li>
               <li>Like the buy, the sale is public but not linked to you or your other addresses.</li>
             </ul>

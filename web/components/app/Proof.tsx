@@ -22,11 +22,18 @@ const CLAIMS = [
   { name: "Independent audit", state: "Not done", checkable: false },
   { name: "Fresh-address routing", state: "Live on testnet", checkable: true },
   { name: "Sanctions screening", state: "Live on testnet", checkable: true },
-  { name: "Token and burns", state: "No token yet", checkable: false },
+  { name: "Relayer bonds (tNLV test token)", state: "Live on testnet", checkable: true },
+  { name: "Mainnet NLV token", state: "Not launched", checkable: false },
   { name: "Open source code", state: "Published on GitHub", checkable: true },
 ];
 
 const sameAddress = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** Owner, and the Safe while it still has to accept the ownership (Ownable2Step). */
+function ownerWithPending(owner: string, pending: string) {
+  if (sameAddress(owner, OWNER_SAFE) || !sameAddress(pending, OWNER_SAFE)) return ownerLink(owner);
+  return <span className="value">{ownerLink(owner)}, Safe to accept</span>;
+}
 
 /** The owner address as an explorer link, named when it is the Safe. */
 function ownerLink(address: string) {
@@ -153,16 +160,17 @@ export function Proof() {
           <div className="form-rows flush">
             {owners && owners !== "failed" ? (
               <>
-                <div><span className="name"><span className="n">01</span>Router owner</span>{ownerLink(owners.routerOwner)}</div>
-                <div><span className="name"><span className="n">02</span>Entrypoint owner role</span><span className="value">{owners.safeHasEntrypointOwnerRole ? "Held by the Safe" : "Not held by the Safe"}</span></div>
-                <div><span className="name"><span className="n">03</span>Signatures needed</span><span className="value">{owners.safeThreshold} of {owners.safeSigners}</span></div>
-                <div><span className="name"><span className="n">04</span>Deployer, owner until 21 Nov 2026</span><span className="value">{owners.previousOwnerHasEntrypointOwnerRole || sameAddress(owners.routerOwner, PREVIOUS_OWNER) ? "Still holds a role" : "No role"}</span></div>
+                <div><span className="name"><span className="n">01</span>Router v2 owner</span>{ownerWithPending(owners.routerOwner, owners.routerPendingOwner)}</div>
+                <div><span className="name"><span className="n">02</span>Relayer registry owner</span>{ownerWithPending(owners.registryOwner, owners.registryPendingOwner)}</div>
+                <div><span className="name"><span className="n">03</span>Entrypoint owner role</span><span className="value">{owners.safeHasEntrypointOwnerRole ? "Held by the Safe" : "Not held by the Safe"}</span></div>
+                <div><span className="name"><span className="n">04</span>Signatures needed</span><span className="value">{owners.safeThreshold} of {owners.safeSigners}</span></div>
+                <div><span className="name"><span className="n">05</span>Deployer</span><span className="value">{owners.previousOwnerHasEntrypointOwnerRole || sameAddress(owners.routerOwner, PREVIOUS_OWNER) || sameAddress(owners.registryOwner, PREVIOUS_OWNER) ? "Still holds a role" : "No role"}</span></div>
               </>
             ) : (
               <div><span className="name">{owners === "failed" ? "Could not read the owner" : "Reading the owner…"}</span></div>
             )}
           </div>
-          <p className="fine">The owner can allow or remove stock tokens, pause Router swaps, upgrade the Entrypoint and wind down the pool. It cannot move anyone&#39;s deposit or tokens, change a signed order or stop a depositor taking a deposit back (ragequit).</p>
+          <p className="fine">The owner can allow or remove stock tokens, pause Router swaps, upgrade the Entrypoint and wind down the pool. It can also remove a relayer from the registry and slash its bond: in v1 that is a decision of the Safe signers, not automatic. It cannot move anyone&#39;s deposit or tokens, change a signed order or stop a depositor taking a deposit back (ragequit).</p>
         </section>
 
         <section className="box" aria-label="Recent pieces">

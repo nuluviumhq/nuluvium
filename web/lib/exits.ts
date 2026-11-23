@@ -72,12 +72,13 @@ export async function sellHolding(keys: UserKeys, holding: Holding, token: Trada
   const amount = await client.readContract({ address: token.address, abi: balanceAbi, functionName: "balanceOf", args: [fresh.address] });
   if (amount === 0n) throw new Error("This address holds none of that token any more.");
 
-  // Minimum: a fresh quote less 1%, less room for the fee (the Router accepts up to twice the quote).
+  // Minimum: a fresh quote less 1%, less room for the relayer fee (the Router accepts up to twice the
+  // quote) and the 0.1% protocol fee.
   try {
     return await sellAtQuote(client, config, fresh, token.address, amount, SLIPPAGE_BPS);
   } catch (error) {
-    if (error instanceof Error && error.message.includes("worth less than the relayer fee")) {
-      throw new Error("This holding is worth less than the relayer fee, so it cannot be sold through the relayer.");
+    if (error instanceof Error && error.message.includes("worth less than the relayer and protocol fees")) {
+      throw new Error("This holding is worth less than the relayer and protocol fees, so it cannot be sold through the relayer.");
     }
     throw error;
   }

@@ -27,6 +27,12 @@ shielded USDG balance, so trades do not trace back to the wallet or the strategy
 4. **Route.** A relayer sends the proof to the Nuluvium Router, which releases the piece's USDG,
    swaps it on a public Uniswap v3 pool and sends the stock tokens to a fresh address.
 
+Relayers bond NLV in a relayer registry (tNLV, a no-value test token, on testnet), and clients pick
+them from it. Each piece pays the relayer's gas fee plus a 0.1% protocol fee in USDG: half to the
+relayer that sent it, half to the treasury Safe. Traders never hold, pay or prove NLV; only relayer
+operators earn, for the pieces they send. In v1, removing a relayer or slashing its bond is a
+decision of the Safe signers, not automatic.
+
 An order is split into pieces of random size at random times within a window. Readers of the chain
 see the pieces, not that they belong together or to whom.
 
@@ -39,7 +45,7 @@ no server stores the link between a user and their fresh addresses.
 
 | Folder | What it is |
 |---|---|
-| `contracts/` | Foundry project: `NuluviumRouter`, test USDG, deploy scripts and tests. Privacy Pools and forge-std are git submodules in `contracts/lib/`. |
+| `contracts/` | Foundry project: `NuluviumRouter` (v1) and `NuluviumRouterV2`, `RelayerRegistry`, `TestNLV`, test USDG, deploy scripts and tests. Privacy Pools and forge-std are git submodules in `contracts/lib/`. |
 | `asp/` | Approved-set provider, a Cloudflare Worker (cron screening, approved set, root posting). |
 | `relayer/` | Relayer, a Cloudflare Worker with a Durable Object queue (`GET /quote`, `POST /piece`, `POST /sell`). |
 | `stats/` | Public stats, a Cloudflare Worker: every 10 minutes it counts pool and Router events, the approved set and the relayer into totals (`GET /stats`), shown on `/stats`. |
@@ -113,9 +119,10 @@ From a clone of this repository, the root `.mcp.json` runs the server from sourc
 
 ## Status
 
-Testnet build complete: shielded pool, approved-set provider, Router, relayer, SDK, MCP server and
+Testnet build complete: shielded pool, approved-set provider, Router, relayers, SDK, MCP server and
 web app, each checked end to end on Robinhood Chain testnet ([docs/testnet.md](docs/testnet.md)).
-The owner roles (Router owner, Entrypoint `OWNER_ROLE`) are held by a Safe 2-of-2
+The relayer model (tNLV, RelayerRegistry, Router v2 with the protocol fee) is deployed on testnet.
+The owner roles (Router owner, registry owner, Entrypoint `OWNER_ROLE`) are held by a Safe 2-of-2
 ([docs/review.md](docs/review.md)). Before mainnet: an independent audit, real stock tokens priced
 from Uniswap quotes, and a second relayer. Deposits are capped until the audit is published.
 

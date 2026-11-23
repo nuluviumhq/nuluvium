@@ -98,49 +98,77 @@ export interface PublicPiece {
   token: `0x${string}`;
   usdgIn: bigint;
   tokenOut: bigint;
+  /** Relayer gas fee. */
   fee: bigint;
+  /** Router v2 protocol fee (0 on Router v1 swaps). */
+  protocolFee: bigint;
   owner: `0x${string}`;
   tx: `0x${string}`;
   block: bigint;
 }
 
-/** The latest Router swaps, as anyone sees them on chain (fresh addresses, not linked). */
+const swappedV1 = {
+  type: "event",
+  name: "Swapped",
+  inputs: [
+    { name: "owner", type: "address", indexed: true },
+    { name: "nonce", type: "uint256", indexed: true },
+    { name: "tokenIn", type: "address", indexed: false },
+    { name: "tokenOut", type: "address", indexed: false },
+    { name: "amountIn", type: "uint256", indexed: false },
+    { name: "amountOut", type: "uint256", indexed: false },
+    { name: "fee", type: "uint256", indexed: false },
+    { name: "feeRecipient", type: "address", indexed: false },
+  ],
+} as const;
+
+const swappedV2 = {
+  type: "event",
+  name: "Swapped",
+  inputs: [
+    { name: "owner", type: "address", indexed: true },
+    { name: "nonce", type: "uint256", indexed: true },
+    { name: "tokenIn", type: "address", indexed: false },
+    { name: "tokenOut", type: "address", indexed: false },
+    { name: "amountIn", type: "uint256", indexed: false },
+    { name: "amountOut", type: "uint256", indexed: false },
+    { name: "fee", type: "uint256", indexed: false },
+    { name: "protocolFee", type: "uint256", indexed: false },
+    { name: "relayer", type: "address", indexed: true },
+  ],
+} as const;
+
+/**
+ * The latest Router swaps, as anyone sees them on chain (fresh addresses, not linked): Router v2
+ * first, then the earlier Router while fewer than `limit` are found.
+ */
 export async function readRecentPieces(limit = 4): Promise<PublicPiece[]> {
   const { publicClientFor } = await sdk();
   const config = await browserConfig();
   const client = publicClientFor(config);
-  const event = {
-    type: "event",
-    name: "Swapped",
-    inputs: [
-      { name: "owner", type: "address", indexed: true },
-      { name: "nonce", type: "uint256", indexed: true },
-      { name: "tokenIn", type: "address", indexed: false },
-      { name: "tokenOut", type: "address", indexed: false },
-      { name: "amountIn", type: "uint256", indexed: false },
-      { name: "amountOut", type: "uint256", indexed: false },
-      { name: "fee", type: "uint256", indexed: false },
-      { name: "feeRecipient", type: "address", indexed: false },
-    ],
-  } as const;
+  const latest = await client.getBlockNumber();
   const found: PublicPiece[] = [];
-  let to = await client.getBlockNumber();
-  // Walk back in proxy-sized chunks until enough swaps are found (at most 10 chunks).
-  for (let chunk = 0; chunk < 10 && found.length < limit; chunk++) {
-    const from = to - config.logChunk + 1n;
-    const logs = await client.getLogs({ address: config.router, event, fromBlock: from, toBlock: to });
-    for (const log of logs.reverse()) {
-      found.push({
-        token: log.args.tokenOut!,
-        usdgIn: log.args.amountIn!,
-        tokenOut: log.args.amountOut!,
-        fee: log.args.fee!,
-        owner: log.args.owner!,
-        tx: log.transactionHash,
-        block: log.blockNumber,
-      });
+  const routers = [{ address: config.router, v2: true }, ...config.previousRouters.map((address) => ({ address, v2: false }))];
+  for (const router of routers) {
+    let to = latest;
+    // Walk back in proxy-sized chunks until enough swaps are found (at most 10 chunks per Router).
+    for (let chunk = 0; chunk < 10 && found.length < limit; chunk++) {
+      const from = to - config.logChunk + 1n;
+      if (router.v2) {
+        const logs = await client.getLogs({ address: router.address, event: swappedV2, fromBlock: from, toBlock: to });
+        for (const log of logs.reverse()) {
+          const { tokenOut, amountIn, amountOut, fee, protocolFee, owner } = log.args;
+          found.push({ token: tokenOut!, usdgIn: amountIn!, tokenOut: amountOut!, fee: fee!, protocolFee: protocolFee!, owner: owner!, tx: log.transactionHash, block: log.blockNumber });
+        }
+      } else {
+        const logs = await client.getLogs({ address: router.address, event: swappedV1, fromBlock: from, toBlock: to });
+        for (const log of logs.reverse()) {
+          const { tokenOut, amountIn, amountOut, fee, owner } = log.args;
+          found.push({ token: tokenOut!, usdgIn: amountIn!, tokenOut: amountOut!, fee: fee!, protocolFee: 0n, owner: owner!, tx: log.transactionHash, block: log.blockNumber });
+        }
+      }
+      to = from - 1n;
     }
-    to = from - 1n;
   }
   return found.slice(0, limit);
 }
@@ -156,8 +184,12 @@ export async function quoteOut(direction: "buy" | "sell", token: `0x${string}`, 
   return direction === "buy" ? quoteSwap(client, config, config.usdg, token, amountIn) : quoteSwap(client, config, token, config.usdg, amountIn);
 }
 
-/** Relayer fee per piece right now, in tUSDG units (from the first relayer that answers). */
+/** Relayer gas fee per piece right now, in tUSDG units (from the first relayer that answers). */
 export async function readPieceFee(): Promise<bigint> {
   const { getQuote } = await sdk();
   return (await getQuote(await browserConfig())).fee;
 }
+
+/** Protocol fee per piece: 0.1% of its tUSDG (Router v2), half to the relayer and half to the treasury. */
+export const PROTOCOL_FEE_BPS = 10n;
+export const protocolFeeOf = (usdgAmount: bigint) => (usdgAmount * PROTOCOL_FEE_BPS) / 10_000n;

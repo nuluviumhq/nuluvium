@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { quoteFee } from "../src/fee.js";
+import { protocolFeeFor, quoteFee } from "../src/fee.js";
 
 const base = { gasPerPiece: 900_000n, ethUsdCents: 300_000n, marginPercent: 120n, minimumFee: 100_000n };
 
@@ -20,4 +20,9 @@ test("gas cost wins when gas is expensive", () => {
 test("rounds up so the relayer never under-charges", () => {
   const { gasCost } = quoteFee({ ...base, gasPerPiece: 1n, gasPriceWei: 1n, minimumFee: 0n });
   assert.equal(gasCost, 1n);
+});
+
+test("protocol fee is 0.1% of the USDG side, rounded down like Router v2", () => {
+  assert.equal(protocolFeeFor(25_000_000n, 10n), 25_000n);
+  assert.equal(protocolFeeFor(999n, 10n), 0n);
 });

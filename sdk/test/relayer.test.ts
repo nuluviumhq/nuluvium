@@ -1,16 +1,32 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { ROBINHOOD_TESTNET } from "../src/config.ts";
-import { getQuote, markRelayerFailed, markRelayerOk, relayerOrder, sendSell, type Order, type Quote } from "../src/relayer.ts";
+import type { PublicClient } from "viem";
+import {
+  clearRelayerCache,
+  getQuote,
+  listRelayers,
+  markRelayerFailed,
+  markRelayerOk,
+  protocolFeeFor,
+  quoteFrom,
+  registryEntries,
+  relayerOrder,
+  sendSell,
+  type Order,
+  type Quote,
+} from "../src/relayer.ts";
 
 const A = "https://relayer-a.test";
 const B = "https://relayer-b.test";
-const config = { ...ROBINHOOD_TESTNET, relayerUrls: [A, B] };
+// No registry: these tests use the fixed list (the registry has its own tests below).
+const config = { ...ROBINHOOD_TESTNET, relayerUrls: [A, B], registry: undefined };
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
   markRelayerOk(A);
   markRelayerOk(B);
+  clearRelayerCache();
 });
 
 /** Fake relayers: `down` do not answer, `refuse` answer 422 to sends; records every request. */
@@ -76,4 +92,62 @@ test("a refused send goes to the other relayer with the same signatures and its 
 test("the other relayer is not used when its fee is above the signed maximum", async () => {
   serveRelayers({ refuse: [A], fees: { [B]: "300000" } });
   await assert.rejects(sendSell(config, quoteOf(A), { order, orderSignature: "0x99", permit }), /above the signed maximum/);
+});
+
+const R1 = "0x0000000000000000000000000000000000000001" as const;
+const R2 = "0x00000000000000000000000000000000000000a2" as const;
+/** A client whose only read is RelayerRegistry.activeRelayers(); `rows` null makes the read fail. */
+const registryClient = (rows: Array<{ relayer: `0x${string}`; url: string; bond: bigint }> | null) => {
+  let reads = 0;
+  const client = {
+    readContract: async () => {
+      reads += 1;
+      if (!rows) throw new Error("rpc down");
+      return rows;
+    },
+  } as unknown as PublicClient;
+  return { client, reads: () => reads };
+};
+const withRegistry = { ...config, registry: "0x00000000000000000000000000000000000000ee" as const };
+
+test("protocolFeeFor is 0.1% rounded down, like Router v2", () => {
+  assert.equal(protocolFeeFor(ROBINHOOD_TESTNET, 25_000_000n), 25_000n);
+  assert.equal(protocolFeeFor(ROBINHOOD_TESTNET, 999n), 0n);
+});
+
+test("registryEntries keeps https URLs only, without trailing slash, once each", () => {
+  const entries = registryEntries([
+    { relayer: R1, url: "https://relayer-a.test/" },
+    { relayer: R2, url: "http://plain.test" },
+    { relayer: R2, url: "javascript:alert(1)" },
+    { relayer: R2, url: "https://relayer-a.test" },
+    { relayer: R2, url: "https://relayer-b.test" },
+  ]);
+  assert.deepEqual(entries, [
+    { url: A, address: R1 },
+    { url: B, address: R2 },
+  ]);
+});
+
+test("listRelayers reads the registry once per cache period", async () => {
+  const { client, reads } = registryClient([{ relayer: R1, url: A, bond: 1n }]);
+  assert.deepEqual(await listRelayers(withRegistry, client, 0), [{ url: A, address: R1 }]);
+  assert.deepEqual(await listRelayers(withRegistry, client, 60_000), [{ url: A, address: R1 }]);
+  assert.equal(reads(), 1);
+});
+
+test("listRelayers falls back to the fixed list when the registry fails or is empty", async () => {
+  assert.deepEqual(await listRelayers(withRegistry, registryClient(null).client), [{ url: A }, { url: B }]);
+  assert.deepEqual(await listRelayers(withRegistry, registryClient([]).client), [{ url: A }, { url: B }]);
+  assert.deepEqual(await listRelayers(config), [{ url: A }, { url: B }]);
+});
+
+test("getQuote uses registry relayers and refuses one that signs with another address", async () => {
+  serveRelayers();
+  const { client } = registryClient([
+    { relayer: R2, url: A, bond: 1n }, // the fake relayer answers with R1: not the registered address
+    { relayer: R1, url: B, bond: 1n },
+  ]);
+  for (let i = 0; i < 4; i++) assert.equal((await getQuote(withRegistry, client)).url, B);
+  await assert.rejects(quoteFrom(config, A, R2), /not the address registered/);
 });

@@ -27,7 +27,7 @@ const TOOLS = [
   { name: "route_order", input: "token, usdgAmount, pieces (1 to 20, default 5), windowMinutes (1 to 1440, default 10), maxSlippagePercent (default 1)", does: "Plans the pieces, stores the order and sends the pieces in the background; returns at once" },
   { name: "cancel_order", input: "orderId", does: "Cancels the pieces not sent yet" },
   { name: "get_orders", input: "onlyOpen", does: "Orders and the status of every piece" },
-  { name: "get_fills", input: "orderId (optional)", does: "Pieces that went out: USDG spent, fee, tokens received, fresh address, transaction" },
+  { name: "get_fills", input: "orderId (optional)", does: "Pieces that went out: USDG spent, relayer and protocol fees, tokens received, fresh address, transaction" },
 ];
 
 export default function Page() {

@@ -93,7 +93,7 @@ const SELL_DEADLINE_SECONDS = 15 * 60;
 
 /**
  * Sells `amountIn` of `token` held by a fresh address for USDG, which stays on that address.
- * @param minUsdgOut smallest USDG the owner accepts after the relayer fee
+ * @param minUsdgOut smallest USDG the owner accepts after the relayer and protocol fees
  */
 export async function sellFromFresh(
   client: PublicClient,
@@ -104,12 +104,12 @@ export async function sellFromFresh(
   minUsdgOut: bigint,
 ): Promise<{ tx: Hex; fee: bigint }> {
   if (amountIn <= 0n) throw new Error("nothing to sell");
-  return signAndSendSell(client, config, fresh, token, amountIn, minUsdgOut, await getQuote(config));
+  return signAndSendSell(client, config, fresh, token, amountIn, minUsdgOut, await getQuote(config, client));
 }
 
 /**
  * Sells `amountIn` of `token` at a fresh Uniswap quote less `slippageBps` (and less room for the
- * relayer fee). Refuses when the holding is worth less than that fee.
+ * relayer and protocol fees). Refuses when the holding is worth less than those fees.
  */
 export async function sellAtQuote(
   client: PublicClient,
@@ -120,9 +120,9 @@ export async function sellAtQuote(
   slippageBps: number,
 ): Promise<{ tx: Hex; fee: bigint; quoted: bigint }> {
   if (amountIn <= 0n) throw new Error("nothing to sell");
-  const quote = await getQuote(config);
+  const quote = await getQuote(config, client);
   const { quoted, minimum } = await quotedSellMinimum(client, config, token, amountIn, quote.fee, slippageBps);
-  if (minimum <= 0n) throw new Error("holding is worth less than the relayer fee");
+  if (minimum <= 0n) throw new Error("holding is worth less than the relayer and protocol fees");
   return { ...(await signAndSendSell(client, config, fresh, token, amountIn, minimum, quote)), quoted };
 }
 

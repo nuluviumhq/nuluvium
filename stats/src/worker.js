@@ -2,7 +2,8 @@
 //   cron (every 10 min): reads new pool and Router events since the last run (one eth_getLogs per
 //          10,000 blocks), adds them to running totals in KV (src/totals.js), then computes the
 //          summary with the current pool balance, the ASP's approved set and the relayer's fee and
-//          gas balance.
+//          gas balance. Router v2 swaps also carry the 0.1% protocol fee (half to the sending
+//          relayer, half to the treasury Safe); v1 swaps (PREVIOUS_ROUTERS) are still counted.
 //   GET /stats   the latest summary (JSON, amounts as decimal strings in token units)
 //
 // Never logs viem's error.message: it contains the RPC URL with its key.
@@ -15,10 +16,18 @@ const EVENTS = [
   parseAbiItem("event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)"),
   parseAbiItem("event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)"),
   parseAbiItem("event Ragequit(address indexed _ragequitter, uint256 _commitment, uint256 _label, uint256 _value)"),
+  // Router v1
   parseAbiItem(
     "event Swapped(address indexed owner, uint256 indexed nonce, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, address feeRecipient)",
   ),
+  // Router v2: same name, other fields (so another topic), with the protocol fee
+  parseAbiItem(
+    "event Swapped(address indexed owner, uint256 indexed nonce, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, uint256 protocolFee, address indexed relayer)",
+  ),
 ];
+
+/** Router v2 and the Routers before it (comma-separated PREVIOUS_ROUTERS), lowercase. */
+const routersOf = (env) => [env.ROUTER, ...(env.PREVIOUS_ROUTERS ?? "").split(",")].map((address) => address.trim().toLowerCase()).filter(Boolean);
 const erc20Abi = parseAbi(["function balanceOf(address) view returns (uint256)"]);
 
 // Alchemy allows 10,000 blocks per eth_getLogs. The free Workers plan allows 50 outgoing requests
@@ -66,7 +75,7 @@ async function scan(client, env, now) {
   const scanUntil = latest < limit ? latest : limit;
   for (let from = lastBlock + 1n; from <= scanUntil; from += LOG_CHUNK) {
     const to = from + LOG_CHUNK - 1n < scanUntil ? from + LOG_CHUNK - 1n : scanUntil;
-    const logs = await client.getLogs({ address: [env.POOL, env.ROUTER], events: EVENTS, fromBlock: from, toBlock: to });
+    const logs = await client.getLogs({ address: [env.POOL, ...routersOf(env)], events: EVENTS, fromBlock: from, toBlock: to });
     for (const log of logs) {
       // The RPC returns the block time with each log (blockTimestamp); seconds since 1970.
       const time = Number(log.blockTimestamp ?? 0n);
@@ -76,8 +85,9 @@ async function scan(client, env, now) {
       } else if (pool && log.eventName === "Withdrawn") addEvent(totals, { type: "withdrawal", value: log.args._value }, context);
       else if (pool && log.eventName === "Ragequit") addEvent(totals, { type: "ragequit", value: log.args._value }, context);
       else if (!pool && log.eventName === "Swapped") {
-        const { tokenIn, tokenOut, amountIn, amountOut, fee } = log.args;
-        addEvent(totals, { type: "swap", tokenIn, tokenOut, amountIn, amountOut, fee, time }, context);
+        // protocolFee is undefined on a v1 swap
+        const { tokenIn, tokenOut, amountIn, amountOut, fee, protocolFee } = log.args;
+        addEvent(totals, { type: "swap", tokenIn, tokenOut, amountIn, amountOut, fee, protocolFee, time }, context);
       }
     }
   }

@@ -1,12 +1,16 @@
 // Nuluvium relayer (Robinhood Chain testnet).
-//   GET  /quote   fee for one piece, relayer address, Router address
+//   GET  /quote   gas fee for one piece, the protocol fee rate, relayer address, Router address,
+//                 whether this relayer is active in the RelayerRegistry
 //   POST /piece   { withdrawal, proof, scope, order, orderSignature, permit, fee }
-//                 simulates Router.relayAndSwap, sends it from the relayer key, waits for the receipt
+//                 simulates Router.relayAndSwap (Router v2), sends it from the relayer key, waits
 //   POST /sell    { order, orderSignature, permit, fee }
 //                 a fresh address sells stock tokens for USDG: Router.swap, fee out of the USDG
 //   cron           checks the gas float; below ALERT_BALANCE_WEI, a Telegram message to the operator
 //
 // Every order's minimum output is checked against this relayer's own QuoterV2 quote (bound.js).
+// Router v2 only accepts pieces from relayers active in the RelayerRegistry (bonded with tNLV on
+// testnet). It takes the gas fee plus a 0.1% protocol fee from the USDG side of each piece: half of
+// the protocol fee to the relayer that sent it, half to the treasury Safe. Traders never pay NLV.
 // Several relayers run this same code with their own key and float (wrangler.jsonc, env "second");
 // clients fail over between them.
 //
@@ -19,7 +23,7 @@ import { createPublicClient, createWalletClient, defineChain, http, parseAbi } f
 import { privateKeyToAccount } from "viem/accounts";
 import { alertDue, floatAlert } from "./alert.js";
 import { checkMinimum } from "./bound.js";
-import { quoteFee } from "./fee.js";
+import { protocolFeeFor, quoteFee } from "./fee.js";
 import { BadRequest, MAX_BODY_BYTES, parsePiece, parseSell } from "./parse.js";
 
 const routerAbi = parseAbi([
@@ -41,7 +45,16 @@ const routerAbi = parseAbi([
   "error WithdrawalRecipientIsNotOrderOwner()",
   "error RelayAndSwapOnlyBuys()",
   "error EnforcedPause()",
+  "error NotARegisteredRelayer(address caller)",
+  "error TooLittleReceived(uint256 amountOut, uint256 minAmountOut)",
+  "error PoolDoesNotExist(address token, uint24 fee)",
 ]);
+
+const registryAbi = parseAbi(["function isActive(address relayer) view returns (bool)"]);
+
+/** Whether this relayer's key is active in the RelayerRegistry (Router v2 refuses it otherwise). */
+const isActive = (env, publicClient, address) =>
+  publicClient.readContract({ address: env.REGISTRY, abi: registryAbi, functionName: "isActive", args: [address] });
 
 const quoterAbi = parseAbi([
   "struct QuoteExactInputSingleParams { address tokenIn; address tokenOut; uint256 amountIn; uint24 fee; uint160 sqrtPriceLimitX96; }",
@@ -115,7 +128,8 @@ async function checkPriceProtection(env, publicClient, order, fee, isBuy) {
   try {
     const tier = await publicClient.readContract({ address: env.ROUTER, abi: routerAbi, functionName: "poolFee", args: [stock] });
     if (tier === 0) throw new Error("not listed");
-    const amountIn = isBuy ? order.amountIn - fee : order.amountIn;
+    // A buy swaps what is left after the gas fee and the protocol fee (Router v2 _buy).
+    const amountIn = isBuy ? order.amountIn - fee - protocolFeeFor(order.amountIn, BigInt(env.PROTOCOL_FEE_BPS)) : order.amountIn;
     const { result } = await publicClient.simulateContract({
       address: env.QUOTER,
       abi: quoterAbi,
@@ -126,14 +140,26 @@ async function checkPriceProtection(env, publicClient, order, fee, isBuy) {
   } catch {
     throw new BadRequest("no price quote for this token right now; not sent");
   }
-  checkMinimum({ isBuy, minAmountOut: order.minAmountOut, maxFee: order.maxFee, quoted, maxSlippageBps: BigInt(env.MAX_SLIPPAGE_BPS) });
+  checkMinimum({
+    isBuy,
+    minAmountOut: order.minAmountOut,
+    maxFee: order.maxFee,
+    quoted,
+    maxSlippageBps: BigInt(env.MAX_SLIPPAGE_BPS),
+    protocolFeeBps: BigInt(env.PROTOCOL_FEE_BPS),
+  });
 }
 
-/** Checks the gas float, the fee and the price limit, simulates `functionName`, sends it, waits. */
+/**
+ * Checks the registry, the gas float, the fee and the price limit, simulates `functionName`, sends
+ * it, waits.
+ */
 async function sendToRouter(env, functionName, args, order, fee) {
   const { account, publicClient, walletClient } = clientsFor(env);
 
-  const balance = await publicClient.getBalance({ address: account.address });
+  const [active, balance] = await Promise.all([isActive(env, publicClient, account.address), publicClient.getBalance({ address: account.address })]);
+  // Unbonding, removed or never registered: Router v2 would revert, so the client tries another relayer.
+  if (!active) throw new Error("this relayer is not active in the registry; try another");
   if (balance < BigInt(env.MINIMUM_BALANCE_WEI)) throw new Error("relayer gas float too low; try later");
 
   const { fee: minimumFee } = await currentQuote(env, publicClient);
@@ -209,14 +235,22 @@ export default {
 
     if (request.method === "GET" && pathname === "/quote") {
       const { account, publicClient } = clientsFor(env);
-      const { fee, gasCost } = await currentQuote(env, publicClient);
+      const [{ fee, gasCost }, active] = await Promise.all([currentQuote(env, publicClient), isActive(env, publicClient, account.address).catch(() => null)]);
       return json({
         chainId: Number(env.CHAIN_ID),
         router: env.ROUTER,
+        registry: env.REGISTRY,
         relayer: account.address, // put this as feeRecipient in the withdrawal; relay fee 0
         name: env.RELAYER_NAME,
+        // null when the registry could not be read just now
+        active,
+        // Gas fee per piece, in USDG units.
         fee: fee.toString(),
         gasCost: gasCost.toString(),
+        // On top of the gas fee: the Router takes this share of the USDG side of each piece
+        // (protocolFeeFor = amount × bps / 10,000); relayerShareBps of it goes to the sending relayer.
+        protocolFeeBps: Number(env.PROTOCOL_FEE_BPS),
+        relayerShareBps: Number(env.RELAYER_SHARE_BPS),
         feeAsset: "USDG (6 decimals)",
       });
     }

@@ -95,3 +95,24 @@ test("a window starts at a bucket edge, so it may include up to 10 minutes more 
   addEvent(older, { type: "swap", tokenIn: USDG, tokenOut: MSTK, amountIn: usdg(1), amountOut: 1n, fee: 0n, time: now - DAY - 900 }, { usdg: USDG, now });
   assert.equal(summarize(older, { symbols, approvedSet: null, now }).routed["24h"].pieces, 0);
 });
+
+test("Router v2 swaps add the protocol fee, split half to relayers and the rest to the treasury", () => {
+  const totals = emptyTotals(0n);
+  const context = { usdg: USDG, now: NOW };
+  // v1 swap: no protocol fee
+  addEvent(totals, { type: "swap", tokenIn: USDG, tokenOut: MSTK, amountIn: usdg(2), amountOut: 1n, fee: usdg(0.1), time: NOW - 60 }, context);
+  // v2 buy of 25 USDG: 0.025 fee; v2 sell paying an odd 3 units (relayer gets 1, treasury 2)
+  addEvent(totals, { type: "swap", tokenIn: USDG, tokenOut: MSTK, amountIn: usdg(25), amountOut: 1n, fee: usdg(0.1), protocolFee: 25_000n, time: NOW - 60 }, context);
+  addEvent(totals, { type: "swap", tokenIn: MSTK, tokenOut: USDG, amountIn: 1n, amountOut: 2_000n, fee: usdg(0.1), protocolFee: 3n, time: NOW - 60 }, context);
+  const { protocol, relayer } = summarize(totals, { symbols, approvedSet: null, now: NOW });
+  assert.deepEqual(protocol, { feesTotal: 25_003n, toRelayers: 12_501n, toTreasury: 12_502n, swaps: 2 });
+  assert.equal(relayer.swaps, 3);
+});
+
+test("totals saved before Router v2 (no protocol block) still summarize and count v2 swaps", () => {
+  const totals = fromEvents(stored, { usdg: USDG, now: NOW });
+  delete totals.protocol;
+  assert.deepEqual(summarize(totals, { symbols, approvedSet: null, now: NOW }).protocol, { feesTotal: 0n, toRelayers: 0n, toTreasury: 0n, swaps: 0 });
+  addEvent(totals, { type: "swap", tokenIn: USDG, tokenOut: MSTK, amountIn: usdg(10), amountOut: 1n, fee: usdg(0.1), protocolFee: 10_000n, time: NOW - 60 }, { usdg: USDG, now: NOW });
+  assert.equal(summarize(totals, { symbols, approvedSet: null, now: NOW }).protocol.feesTotal, 10_000n);
+});

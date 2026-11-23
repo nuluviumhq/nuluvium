@@ -45,9 +45,10 @@ export function quotedBuy(client: PublicClient, config: NetworkConfig, tokenOut:
 }
 
 /**
- * Smallest USDG a sell of `amountIn` accepts after the relayer fee: the quote less slippage, less
- * twice the quoted fee (the order lets the fee rise up to that before the relayer sends).
- * Returns 0 or less when the holding is worth less than the fee.
+ * Smallest USDG a sell of `amountIn` accepts after the fees: the quote less slippage, less twice the
+ * quoted relayer fee (the order lets that fee rise up to it before the relayer sends) and less the
+ * protocol fee on the quote (Router v2 takes it from the USDG the swap brings).
+ * Returns 0 or less when the holding is worth less than the fees.
  */
 export async function quotedSellMinimum(
   client: PublicClient,
@@ -58,5 +59,6 @@ export async function quotedSellMinimum(
   slippageBps: number,
 ): Promise<{ quoted: bigint; minimum: bigint }> {
   const quoted = await quoteSwap(client, config, token, config.usdg, amountIn);
-  return { quoted, minimum: withSlippage(quoted, slippageBps) - quotedFee * 2n };
+  const protocolFee = (quoted * config.protocolFeeBps) / BPS;
+  return { quoted, minimum: withSlippage(quoted, slippageBps) - quotedFee * 2n - protocolFee };
 }

@@ -21,7 +21,8 @@ export default function Page() {
         <p>For every piece, your browser makes a zero-knowledge proof: that you own an approved deposit with enough left, without saying which one. What is left becomes a new note that only you can spend. Proofs take a few seconds in the browser.</p>
       </DocSection>
       <DocSection n={4} title="Route">
-        <p>The relayer sends the proof to the Nuluvium Router in one transaction. The pool releases the piece&#39;s USDG, the Router swaps it on a public Uniswap v3 pool, and the stock tokens go straight to the fresh address. The order is signed by the fresh address, so the relayer cannot change it. The relayer pays the gas and takes its fee in USDG.</p>
+        <p>A relayer sends the proof to the Nuluvium Router in one transaction. The pool releases the piece&#39;s USDG, the Router swaps it on a public Uniswap v3 pool, and the stock tokens go straight to the fresh address. The order is signed by the fresh address, so the relayer cannot change it. The relayer pays the gas and takes its fee in USDG; the Router also takes a 0.1% protocol fee from the piece, half for that relayer and half for the treasury Safe.</p>
+        <p>The app picks the relayer from the relayer registry, where each relayer has bonded NLV (tNLV, a test token, on testnet), and tries another if one does not answer. Pieces of one order go through different relayers at random, so no relayer is sure to see them all. You never hold or pay NLV; the bond is the relayer&#39;s.</p>
       </DocSection>
       <DocSection n={5} title="What the chain shows, and what stays with you">
         <CompareCard sides={[

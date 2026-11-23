@@ -1,4 +1,4 @@
-// Relayer fee quote. Pure, so it can be tested without a chain.
+// Relayer fee quote and the Router v2 protocol fee. Pure, so it can be tested without a chain.
 //
 // fee (USDG units, 6 decimals) = max(minimum, gas per piece × gas price × ETH price × margin)
 // At Robinhood Chain gas prices (about 0.01 gwei) the gas part is cents, so the minimum decides.
@@ -16,4 +16,15 @@ export function quoteFee({ gasPerPiece, gasPriceWei, ethUsdCents, marginPercent,
   const denominator = WEI_PER_ETH * 100n * 100n;
   const gasCost = (numerator + denominator - 1n) / denominator;
   return { fee: gasCost > minimumFee ? gasCost : minimumFee, gasCost };
+}
+
+/**
+ * Router v2 protocol fee on the USDG side of a piece: amount × bps / 10,000, rounded down (the same
+ * as NuluviumRouterV2.protocolFeeFor). Half goes to the relayer that sends the piece, half to the
+ * treasury Safe; the trader pays it in USDG, never in NLV.
+ * @param {bigint} usdgAmount
+ * @param {bigint} protocolFeeBps
+ */
+export function protocolFeeFor(usdgAmount, protocolFeeBps) {
+  return (usdgAmount * protocolFeeBps) / 10_000n;
 }

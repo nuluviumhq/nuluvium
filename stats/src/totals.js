@@ -30,9 +30,21 @@ export function emptyTotals(lastBlock) {
     all: emptyWindow(),
     pieceSizes: PIECE_BUCKETS.map(() => 0),
     relayer: { feesTotal: "0", swaps: 0 },
+    protocol: emptyProtocol(),
     buckets: [],
   };
 }
+
+/**
+ * Router v2 protocol fee (0.1% of the USDG side of each piece): the whole fee, the share paid to
+ * the relayers that sent the pieces and the rest to the treasury Safe. Router v1 swaps paid none.
+ */
+function emptyProtocol() {
+  return { feesTotal: "0", toRelayers: "0", toTreasury: "0", swaps: 0 };
+}
+
+/** Router v2 RELAYER_SHARE_BPS: half of each protocol fee goes to the relayer that sent the piece. */
+export const RELAYER_SHARE_BPS = 5_000n;
 
 function emptyWindow() {
   // byToken is keyed by lowercase token address; symbols are applied when the summary is made.
@@ -76,6 +88,15 @@ export function addEvent(totals, event, { usdg, now }) {
       event.tokenIn.toLowerCase() === usdgAddress ? "buy" : event.tokenOut.toLowerCase() === usdgAddress ? "sell" : "other";
     totals.relayer.swaps += 1;
     totals.relayer.feesTotal = add(totals.relayer.feesTotal, event.fee);
+    if (event.protocolFee !== undefined && event.protocolFee !== null) {
+      // Totals saved before Router v2 have no protocol block yet.
+      totals.protocol ??= emptyProtocol();
+      const toRelayer = (BigInt(event.protocolFee) * RELAYER_SHARE_BPS) / 10_000n; // rounded down, as the Router does
+      totals.protocol.swaps += 1;
+      totals.protocol.feesTotal = add(totals.protocol.feesTotal, event.protocolFee);
+      totals.protocol.toRelayers = add(totals.protocol.toRelayers, toRelayer);
+      totals.protocol.toTreasury = add(totals.protocol.toTreasury, BigInt(event.protocolFee) - toRelayer);
+    }
     addSwapTo(totals.all, event, kind);
     if (kind === "buy") {
       const amount = BigInt(event.amountIn);
@@ -189,8 +210,12 @@ export function summarize(totals, { symbols, approvedSet, now }) {
       }
     : null;
 
-  // 6. Relayer fees: what the relayer took per swap (pieces and sells).
+  // 6. Relayer fees: the gas fee the relayers took per swap (pieces and sells).
   const relayer = { feesTotal: big(totals.relayer.feesTotal), swaps: totals.relayer.swaps };
 
-  return { crowd, flows, routed, pieceSizes, cleanFunds, relayer };
+  // 7. Protocol fee (Router v2 swaps only), split between the sending relayers and the treasury Safe.
+  const saved = totals.protocol ?? emptyProtocol();
+  const protocol = { feesTotal: big(saved.feesTotal), toRelayers: big(saved.toRelayers), toTreasury: big(saved.toTreasury), swaps: saved.swaps };
+
+  return { crowd, flows, routed, pieceSizes, cleanFunds, relayer, protocol };
 }

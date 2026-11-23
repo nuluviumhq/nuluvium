@@ -20,7 +20,7 @@ export default function Page() {
           { icon: "eye", title: "Private from the public, not from Robinhood", children: <p>Robinhood runs the chain&#39;s sequencer and issues the stock tokens. It can see and block every address. Nuluvium hides the link between your trades from other readers of the chain.</p> },
           { icon: "flag", title: "The issuer controls stock tokens", children: <p>The stock token contract lets its issuer pause, block or burn tokens at any address, fresh addresses included. Nuluvium cannot prevent that. USDG can also be frozen by its issuer.</p> },
           { icon: "crowd", title: "Privacy needs a crowd", children: <p>Fresh addresses only hide you among the other people using the pool. While few people use it, it is easier to guess which deposit paid for which piece. More pieces over a longer window make the guess harder.</p> },
-          { icon: "lock", title: "Not audited yet", children: <p>Nuluvium&#39;s Router and services have not had an independent audit yet. Deposits are capped until one is published. Smart contracts can fail, and you can lose money.</p> },
+          { icon: "lock", title: "Not audited yet", children: <p>Nuluvium&#39;s Router, relayer registry and services have not had an independent audit yet. Deposits are capped until one is published. Smart contracts can fail, and you can lose money.</p> },
         ]} />
       </DocSection>
       <DocSection n={3} title="Testnet">

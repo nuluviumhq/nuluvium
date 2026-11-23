@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 // Nuluvium MCP server (stdio). Runs on the agent's own machine: the secret, the notes and the
-// order schedule never leave it. Pieces are sent through the Nuluvium relayers (the other one when one is down or refuses).
+// order schedule never leave it. Pieces are sent through the relayers active in the RelayerRegistry
+// (another one when one is down or refuses) to Router v2, which takes the relayer gas fee and a 0.1%
+// protocol fee from the USDG of each piece. The agent never holds or pays NLV.
 //
 // Environment:
 //   NULUVIUM_MNEMONIC   required. The agent's secret (BIP-39). Never printed or returned.
 //   NULUVIUM_NETWORK    default "robinhood-testnet"
 //   NULUVIUM_RPC_URL    optional own RPC (may hold an API key; never printed)
 //   NULUVIUM_LOG_CHUNK  blocks per log query with NULUVIUM_RPC_URL (default 10000, Alchemy limit)
-//   NULUVIUM_RELAYERS   optional comma-separated relayer URLs instead of the network's own list
+//   NULUVIUM_RELAYERS   optional comma-separated relayer URLs instead of the registry's list (each
+//                       must still be active in the RelayerRegistry, or Router v2 refuses its pieces)
 //   NULUVIUM_HOME       default ~/.nuluvium (order schedule; local only)
 //   NULUVIUM_ARTIFACTS  circuit files folder. Default: testnet/artifacts when run from the source
 //                       tree with the files there, else ~/.nuluvium/artifacts (downloaded once)
@@ -55,7 +58,7 @@ const network = rpcOverride
 delete process.env.NULUVIUM_RPC_URL; // may contain an API key
 // Own relayer list (e.g. a relayer the agent runs itself); failover works across all of them.
 const relayerOverride = process.env.NULUVIUM_RELAYERS?.split(",").map((url) => url.trim().replace(/\/$/, "")).filter(Boolean);
-if (relayerOverride?.length) network.config = { ...network.config, relayerUrls: relayerOverride };
+if (relayerOverride?.length) network.config = { ...network.config, relayerUrls: relayerOverride, registry: undefined };
 
 const home = process.env.NULUVIUM_HOME ?? join(homedir(), ".nuluvium");
 const sourceArtifacts = fileURLToPath(new URL("../../testnet/artifacts", import.meta.url));
@@ -297,6 +300,8 @@ server.registerTool(
             piece: piece.number,
             spent: usdg(piece.amount),
             relayerFee: usdg(piece.fee ?? "0"),
+            // 0.1% of the piece (Router v2); absent on pieces sent before it
+            protocolFee: piece.protocolFee === undefined ? undefined : usdg(piece.protocolFee),
             received: `${formatUnits(BigInt(piece.received ?? "0"), token.decimals)} ${token.symbol}`,
             freshAddress: piece.fresh,
             transaction: `${network.explorer}/tx/${piece.tx}`,

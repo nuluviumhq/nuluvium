@@ -48,9 +48,10 @@ test("quotedBuy asks for a new quote for every piece", async () => {
   assert.equal(quotes.length, 2);
 });
 
-test("quotedSellMinimum leaves room for twice the fee", async () => {
+test("quotedSellMinimum leaves room for twice the relayer fee and the protocol fee", async () => {
   const { client } = fakeClient(500);
   const { quoted, minimum } = await quotedSellMinimum(client, config, STOCK, 10n ** 17n, 100_000n, 100);
   assert.equal(quoted, 18_000_000n);
-  assert.equal(minimum, 17_820_000n - 200_000n);
+  // 18 USDG less 1% slippage, less 2 × 0.10 relayer fee, less the 0.1% protocol fee on the quote.
+  assert.equal(minimum, 17_820_000n - 200_000n - 18_000n);
 });

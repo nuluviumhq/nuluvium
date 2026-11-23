@@ -19,7 +19,9 @@
     "CHAIN_ID": "46630",
     "RPC_URL": "https://rpc.testnet.chain.robinhood.com",
     "POOL": "0x2B38bF53acc21a51603E68f5BC3bC8943B01fD4a",
-    "ROUTER": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
+    // Router v2 (protocol fee); earlier Routers are still read for the totals.
+    "ROUTER": "0x2A97D783811ADa610223CeBD56d77d72306F0B9e",
+    "PREVIOUS_ROUTERS": "0x3287C2947f137c20c8BfeB628f800D23b8e5D155",
     "USDG": "0xd26d58F86cf82c702b558D6E7F159939E97F0Bfa",
     // L2 block of the pool deploy (same as the ASP).
     "DEPLOY_BLOCK": "153603397",

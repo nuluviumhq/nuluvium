@@ -136,6 +136,7 @@ export class Engine {
           tx: result.tx,
           fresh: result.fresh,
           fee: result.fee.toString(),
+          protocolFee: result.protocolFee.toString(),
           received: received.toString(),
           sentAt: Math.floor(Date.now() / 1000),
           error: undefined,

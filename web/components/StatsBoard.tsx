@@ -37,6 +37,8 @@ interface Stats {
     /** Each relayer's gas balance, main first (absent in summaries from before the second relayer). */
     relayers?: Array<{ url: string; name: string | null; address: string | null; ethBalance: Amount | null }>;
   };
+  /** Router v2 protocol fee, 0.1% per piece (absent in summaries from before Router v2). */
+  protocol?: { feesTotal: Amount; toRelayers: Amount; toTreasury: Amount; swaps: number };
 }
 
 /** "1234567" (6 decimals) → "1.23"; whole numbers with thousands separators. */
@@ -201,16 +203,19 @@ export function StatsBoard() {
           <p className="fine">Every deposit is checked against sanctions lists, the stock issuer&#39;s blocklist and the beta caps before it can pay for a piece.</p>
         </Box>
 
-        <Box title="Relayers" note="Send every piece; the app falls back to the second">
+        <Box title="Relayers" note="Bonded in the registry; the app falls back to another">
           <Figures
             rows={[
-              ["Fee per piece now", stats.relayer.currentFee ? <>{usdg(stats.relayer.currentFee)} <small>USDG</small></> : "–"],
-              ["Fees taken, all time", <>{usdg(stats.relayer.feesTotal)} <small>USDG</small></>],
+              ["Gas fee per piece now", stats.relayer.currentFee ? <>{usdg(stats.relayer.currentFee)} <small>USDG</small></> : "–"],
+              ["Gas fees taken, all time", <>{usdg(stats.relayer.feesTotal)} <small>USDG</small></>],
+              ["Protocol fee, 0.1% per piece", stats.protocol ? <>{formatUnits(stats.protocol.feesTotal, 6, 4)} <small>USDG</small></> : "–"],
+              ["Of which to relayers", stats.protocol ? <>{formatUnits(stats.protocol.toRelayers, 6, 4)} <small>USDG</small></> : "–"],
+              ["Of which to the treasury Safe", stats.protocol ? <>{formatUnits(stats.protocol.toTreasury, 6, 4)} <small>USDG</small></> : "–"],
               ["Transactions sent", count(stats.relayer.swaps)],
               ...gasRows(stats.relayer),
             ]}
           />
-          <p className="fine">Success rate and timing are not measured: the relayers keep no logs on purpose, so failed attempts are not recorded anywhere.</p>
+          <p className="fine">The protocol fee counts Router v2 pieces only (from 23 Nov 2026); it is paid in USDG from each piece, half to the relayer that sent it and half to the treasury Safe. Success rate and timing are not measured: the relayers keep no logs on purpose, so failed attempts are not recorded anywhere.</p>
         </Box>
       </div>
 

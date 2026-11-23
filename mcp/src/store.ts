@@ -15,7 +15,8 @@ export interface StoredPiece {
   tx?: string;
   fresh?: string;
   received?: string; // token units
-  fee?: string;
+  fee?: string; // relayer gas fee, USDG units
+  protocolFee?: string; // Router v2 protocol fee, USDG units
   sentAt?: number;
   error?: string;
 }

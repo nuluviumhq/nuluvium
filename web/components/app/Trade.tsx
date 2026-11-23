@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatUsdg, parseUsdg, quoteOut, readPieceFee, readRecentPieces, unitsToInput, type PublicPiece } from "@/lib/chain";
+import { formatUsdg, parseUsdg, protocolFeeOf, quoteOut, readPieceFee, readRecentPieces, unitsToInput, type PublicPiece } from "@/lib/chain";
 import { STATUS_CLASS, STATUS_LABEL, marble } from "@/lib/format";
 import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
 import { orderLimits } from "@/lib/orderLimits";
@@ -49,8 +49,10 @@ export function Trade() {
   const token = TOKENS.find((item) => item.symbol === symbol) ?? TOKENS[0]!;
   const amount = parseUsdg(amountText) ?? 0n;
   const fees = feePerPiece === null ? null : feePerPiece * BigInt(pieces);
-  const spend = fees !== null && amount > fees ? amount - fees : 0n;
-  // Quote for the whole order after fees (each piece gets its own quote when it is sent).
+  // 0.1% of the order (Router v2 takes it per piece, so the sum can be a few units lower).
+  const protocolFee = protocolFeeOf(amount);
+  const spend = fees !== null && amount > fees + protocolFee ? amount - fees - protocolFee : 0n;
+  // Quote for the whole order after both fees (each piece gets its own quote when it is sent).
   const [receive, setReceive] = useState<bigint | null>(0n);
   useEffect(() => {
     if (spend === 0n) {
@@ -165,7 +167,7 @@ export function Trade() {
                   {(recent ?? []).map((piece) => {
                     const known = TOKENS.find((item) => item.address.toLowerCase() === piece.token.toLowerCase());
                     const decimals = known?.decimals ?? 18;
-                    const spent = piece.usdgIn - piece.fee;
+                    const spent = piece.usdgIn - piece.fee - piece.protocolFee;
                     const price = piece.tokenOut > 0n ? (Number(spent) / 1e6) / (Number(piece.tokenOut) / 10 ** decimals) : 0;
                     return (
                       <tr key={piece.tx}>
@@ -234,6 +236,10 @@ export function Trade() {
                 <div>
                   <span className="name"><span className="n">07</span>Relayer fee, {pieces} pieces</span>
                   <span className="value">{fees === null ? <span className="skeleton">…</span> : formatUsdg(fees)} <small>tUSDG</small></span>
+                </div>
+                <div>
+                  <span className="name"><span className="n">08</span>Protocol fee, 0.1%</span>
+                  <span className="value">{formatUsdg(protocolFee)} <small>tUSDG</small></span>
                 </div>
               </div>
               <button className="button full" type="submit" disabled={sending || Boolean(blocker)}>{sending ? "Planning…" : loggedIn ? "Route order" : "Log in to route"}</button>
