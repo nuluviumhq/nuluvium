@@ -80,6 +80,8 @@ From a clone of this repository, the root `.mcp.json` runs the server from sourc
   circuit files); then the server over stdio via `npx -y @nuluvium/mcp`: connected in 52 s cold, 14 s
   warm, 6 tools, `get_balance` read the test wallet.
 - 0.1.1 (2026-11-20): same code, adds `mcpName` for the official MCP Registry.
+- 0.2.0 (2026-11-23): relayers from the RelayerRegistry (falls back to the built-in list; `NULUVIUM_RELAYERS`
+  still overrides), orders for Router v2, `get_fills` shows the 0.1% protocol fee; viem 2.57.17.
 - Next version: bump `version` in `mcp/package.json` **and** both versions in `mcp/server.json`, then
   `npm publish --access public` from `mcp/` (the account owner runs it: npm asks for 2FA, and must be
   logged in as `nuluvium`: a logged-out publish fails with a misleading 404), then publish to the

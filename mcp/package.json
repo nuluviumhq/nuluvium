@@ -1,7 +1,7 @@
 {
   "name": "@nuluvium/mcp",
   "mcpName": "com.nuluvium/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "Nuluvium MCP server: lets an AI agent trade Robinhood Chain stock tokens privately, from its own machine",
   "license": "Apache-2.0",
@@ -45,7 +45,7 @@
     "@modelcontextprotocol/sdk": "1.32.2",
     "@scure/bip39": "1.5.4",
     "poseidon-lite": "0.3.0",
-    "viem": "2.57.8",
+    "viem": "2.57.17",
     "zod": "3.25.76"
   },
   "devDependencies": {
@@ -54,7 +54,7 @@
   },
   "overrides": {
     "@0xbow/privacy-pools-core-sdk": {
-      "viem": "2.57.8"
+      "viem": "2.57.17"
     }
   }
 }
