@@ -21,6 +21,9 @@ export const REASONS = Object.freeze({
   OVER_TOTAL_CAP: "approved total would exceed the total cap",
 });
 
+/** Reason text → stable code (the REASONS key), published with every rejection so apps can explain it. */
+export const REASON_CODES = Object.freeze(Object.fromEntries(Object.entries(REASONS).map(([code, text]) => [text, code])));
+
 const lower = (address) => address.toLowerCase();
 
 /** Default share of a deposit that flagged senders must reach to reject it: 10% (in basis points). */
@@ -68,7 +71,7 @@ export function screenSources(deposit, rules) {
  *   checkSources?: boolean,        // default true; false skips the source check (and never waits)
  *   sourceShareBps?: bigint,       // default SOURCE_SHARE_BPS
  * }} rules
- * @returns {{approved: typeof deposits, rejected: Array<{deposit: object, reason: string}>, waiting: typeof deposits, approvedTotal: bigint}}
+ * @returns {{approved: typeof deposits, rejected: Array<{deposit: object, reason: string, code: string}>, waiting: typeof deposits, approvedTotal: bigint}}
  */
 export function screenDeposits(deposits, rules) {
   // Chain order decides who fits under the total cap: first come, first approved.
@@ -98,7 +101,7 @@ export function screenDeposits(deposits, rules) {
     else if (!reason && approvedTotal + deposit.value > rules.totalCap) reason = REASONS.OVER_TOTAL_CAP;
 
     if (reason) {
-      rejected.push({ deposit, reason });
+      rejected.push({ deposit, reason, code: REASON_CODES[reason] });
     } else {
       approved.push(deposit);
       approvedTotal += deposit.value;

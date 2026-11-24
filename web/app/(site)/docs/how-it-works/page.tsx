@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DocSection, DocsPage } from "@/components/docs";
 import { CompareCard, Footnote } from "@/components/layouts";
 
@@ -16,6 +17,7 @@ export default function Page() {
       <DocSection n={2} title="Screen">
         <p>The approved-set provider checks every deposit: the OFAC sanctions list, the stock token issuer&#39;s blocklist, Nuluvium&#39;s own denylist, and the deposit caps. It also checks where the wallet&#39;s USDG came from, one step back: if at least 10% of the deposit was sent by an address on one of those lists, the deposit is not approved. Smaller amounts from such an address do not count, so nobody can get your deposit refused by sending you a little. Funds that passed through another wallet first are not traced.</p>
         <p>It publishes the list of approved deposits under its content hash and in a public archive, and posts the list&#39;s root on chain. If a check cannot run, the deposit is not approved.</p>
+        <p>Every refusal carries a reason code, for example <code>OVER_DEPOSIT_CAP</code>, <code>DENYLISTED</code> or <code>SOURCE_SANCTIONED</code>. The app shows it on the deposit in plain words with what to do next, and <Link className="text-link" href="/stats">Stats</Link> counts refusals by code.</p>
       </DocSection>
       <DocSection n={3} title="Prove">
         <p>For every piece, your browser makes a zero-knowledge proof: that you own an approved deposit with enough left, without saying which one. What is left becomes a new note that only you can spend. Proofs take a few seconds in the browser.</p>

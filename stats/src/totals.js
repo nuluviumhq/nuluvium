@@ -12,6 +12,7 @@
 // Amounts are decimal strings (JSON has no bigint), added with BigInt. Pure: no chain, no KV.
 
 import { PIECE_BUCKETS } from "./aggregate.js";
+import { countCodes } from "./reasons.js";
 
 export const BUCKET_SECONDS = 600;
 const DAY = 86_400;
@@ -206,6 +207,7 @@ export function summarize(totals, { symbols, approvedSet, now }) {
         approved: approvedSet.labels.length,
         rejected: approvedSet.rejected.length,
         reasons,
+        codes: countCodes(approvedSet.rejected),
         waiting: Math.max(0, totals.deposits.length - approvedSet.labels.length - approvedSet.rejected.length),
       }
     : null;

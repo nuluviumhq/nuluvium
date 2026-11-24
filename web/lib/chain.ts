@@ -2,6 +2,7 @@
 // when needed, so the first page load stays small. Every read goes through our /api/rpc proxy.
 
 import type { NetworkConfig, UserKeys } from "@nuluvium/sdk";
+import { reasonCode, type ReasonCode } from "./reasons.ts";
 
 // Browser only. Next replaces `typeof window` with "undefined" in server builds, so this branch and
 // the whole SDK (snarkjs, ethers, poseidon constants: ~2.6 MB) are dropped from the Worker bundle.
@@ -25,7 +26,8 @@ export interface ShieldedNote {
   depositor: `0x${string}`;
   /** ASP decision on the deposit: only approved notes can be spent privately. */
   approval: Approval;
-  reason?: string;
+  /** Why it was not approved (only for rejected notes). */
+  reason?: ReasonCode | null;
 }
 
 export interface ShieldedBalance {
@@ -47,7 +49,7 @@ export async function readShieldedBalance(keys: UserKeys): Promise<ShieldedBalan
   const notes: ShieldedNote[] = spendable.map((note) => {
     const rejected = set?.rejected.find((entry) => entry.label === note.label.toString());
     const approval: Approval = set?.labels.includes(note.label) ? "approved" : rejected ? "rejected" : "waiting";
-    return { depositIndex: note.depositIndex, value: note.value, withdrawals: note.withdrawals, depositor: note.depositor, approval, reason: rejected?.reason };
+    return { depositIndex: note.depositIndex, value: note.value, withdrawals: note.withdrawals, depositor: note.depositor, approval, reason: rejected ? reasonCode(rejected) : undefined };
   });
   return {
     total: notes.reduce((sum, note) => sum + note.value, 0n),

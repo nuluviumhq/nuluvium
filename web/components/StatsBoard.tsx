@@ -6,6 +6,7 @@
 // piece-size bars are inline widths.
 
 import { useEffect, useState } from "react";
+import { REASON_COPY, reasonCode, type ReasonCode } from "@/lib/reasons";
 
 const STATS_URL = "https://stats.nuluvium.com/stats";
 /** Below this many approved deposits, the page says plainly that privacy is weak. */
@@ -28,7 +29,8 @@ interface Stats {
   flows: { deposited: Amount; withdrawnToPieces: Amount; takenBack: Amount };
   routed: Record<"24h" | "7d" | "all", Window>;
   pieceSizes: Array<{ from: number; to: number | null; pieces: number }>;
-  cleanFunds: { approved: number; rejected: number; waiting: number; reasons: Record<string, number> } | null;
+  /** codes: refusals by stable code (summaries from before 2026-11-24 have only reasons, by text). */
+  cleanFunds: { approved: number; rejected: number; waiting: number; reasons: Record<string, number>; codes?: Record<string, number> } | null;
   relayer: {
     feesTotal: Amount;
     swaps: number;
@@ -48,6 +50,21 @@ function formatUnits(value: Amount, decimals: number, digits: number): string {
 }
 const usdg = (value: Amount) => formatUnits(value, 6, 2);
 const eth = (value: Amount | null) => (value ? <>{formatUnits(value, 18, 4)} <small>ETH</small></> : "–");
+
+/** Refusals by reason code, with a plain label; older summaries are counted from the reason text. */
+function refusalRows(cleanFunds: NonNullable<Stats["cleanFunds"]>): Array<[string, React.ReactNode]> {
+  const codes: Record<string, number> = { ...cleanFunds.codes };
+  if (!cleanFunds.codes) {
+    for (const [reason, number] of Object.entries(cleanFunds.reasons)) {
+      const code = reasonCode({ reason }) ?? "OTHER";
+      codes[code] = (codes[code] ?? 0) + number;
+    }
+  }
+  return Object.entries(codes).map(([code, number]) => [
+    code in REASON_COPY ? REASON_COPY[code as ReasonCode].label : "Other",
+    <>{count(number)} <small>{code}</small></>,
+  ]);
+}
 
 /** One gas-balance row per relayer; older summaries only carry the main relayer's balance. */
 function gasRows(relayer: Stats["relayer"]): Array<[string, React.ReactNode]> {
@@ -193,8 +210,11 @@ export function StatsBoard() {
                   ["Waiting for the check", count(stats.cleanFunds.waiting)],
                 ]}
               />
-              {Object.keys(stats.cleanFunds.reasons).length > 0 ? (
-                <p className="fine">Why not approved: {Object.entries(stats.cleanFunds.reasons).map(([reason, number]) => `${reason} (${number})`).join(" · ")}.</p>
+              {refusalRows(stats.cleanFunds).length > 0 ? (
+                <>
+                  <p className="fine">Why not approved, by reason code:</p>
+                  <Figures rows={refusalRows(stats.cleanFunds)} />
+                </>
               ) : null}
             </>
           ) : (

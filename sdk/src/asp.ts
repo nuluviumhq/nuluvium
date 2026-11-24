@@ -10,7 +10,8 @@ export interface ApprovedSet {
   cid: string;
   root: bigint;
   labels: bigint[];
-  rejected: Array<{ label: string; reason: string }>;
+  /** Refused deposits; `code` is the stable reason code (sets published before 2026-11-24 have only the text). */
+  rejected: Array<{ label: string; reason: string; code?: string }>;
 }
 
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
@@ -48,7 +49,8 @@ export function rootOf(labels: bigint[]): bigint {
 interface SetDocument {
   root: bigint;
   labels: bigint[];
-  rejected: Array<{ label: string; reason: string }>;
+  /** Refused deposits; `code` is the stable reason code (sets published before 2026-11-24 have only the text). */
+  rejected: Array<{ label: string; reason: string; code?: string }>;
 }
 
 /** The set document stored under `cid`, checked against the CID and against its own root. */

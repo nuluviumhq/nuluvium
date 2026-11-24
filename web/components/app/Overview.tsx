@@ -15,6 +15,7 @@ import { Dialog } from "./Dialog";
 import { MarketHours } from "./MarketHours";
 import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { DEPOSIT_CAP, friendlyError, useSession } from "./session";
+import { REASON_COPY } from "@/lib/reasons";
 
 const TILE_COUNT = 45;
 const APPROVAL_LABEL = { approved: "Approved", waiting: "Checking, about a minute", rejected: "Not approved" } as const;
@@ -242,7 +243,11 @@ export function Overview() {
                           <td className="hash">#{note.depositIndex.toString()}</td>
                           <td>{formatUsdg(note.value)}</td>
                           <td>
-                            <span className={`state ${APPROVAL_CLASS[note.approval]}`} title={note.reason}>{APPROVAL_LABEL[note.approval]}</span>
+                            <span className={`state ${APPROVAL_CLASS[note.approval]}`}>{APPROVAL_LABEL[note.approval]}</span>
+                            {/* Refused: say why and what to do (codes from the clean-funds check, lib/reasons.ts). */}
+                            {note.approval === "rejected" ? (
+                              <p className="fine">{note.reason ? REASON_COPY[note.reason].explain : "The clean-funds check did not approve it. It can only be taken back."}</p>
+                            ) : null}
                           </td>
                           <td>
                             {!ownWallet ? (

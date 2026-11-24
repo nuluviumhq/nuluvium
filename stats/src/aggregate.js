@@ -3,6 +3,8 @@
 // aggregate() over the full event list stays as the reference the totals are tested against. Only totals over everyone: nothing here is per user,
 // and the page never lists addresses or links deposits to pieces.
 
+import { countCodes } from "./reasons.js";
+
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 
@@ -90,7 +92,7 @@ export function aggregate({ deposits, withdrawals, ragequits, swaps, usdg, symbo
   const reasons = {};
   for (const item of approvedSet?.rejected ?? []) reasons[item.reason] = (reasons[item.reason] ?? 0) + 1;
   const cleanFunds = approvedSet
-    ? { approved: approvedSet.labels.length, rejected: approvedSet.rejected.length, reasons, waiting: Math.max(0, deposits.length - approvedSet.labels.length - approvedSet.rejected.length) }
+    ? { approved: approvedSet.labels.length, rejected: approvedSet.rejected.length, reasons, codes: countCodes(approvedSet.rejected), waiting: Math.max(0, deposits.length - approvedSet.labels.length - approvedSet.rejected.length) }
     : null;
 
   // 6. Relayer fees: what the relayer took per swap (pieces and sells).

@@ -208,7 +208,7 @@ export async function runOnce(env, { dryRun = false } = {}) {
       ofacAddresses: sanctioned.size,
     },
     approvedLabels: approved.map((deposit) => deposit.label.toString()),
-    rejected: rejected.map(({ deposit, reason }) => ({ label: deposit.label.toString(), tx: deposit.tx, reason })),
+    rejected: rejected.map(({ deposit, reason, code }) => ({ label: deposit.label.toString(), tx: deposit.tx, reason, code })),
     createdAt: new Date().toISOString(),
   };
   const bytes = new TextEncoder().encode(JSON.stringify(document, null, 2));

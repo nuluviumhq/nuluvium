@@ -42,6 +42,10 @@ test("rejects sanctioned, issuer-blocked and denylisted depositors (case-insensi
 
   const deniedResult = screenDeposits([deposit(BOB, 10, 5)], rules({ denylist: new Set([BOB.toLowerCase()]) }));
   assert.equal(deniedResult.rejected[0].reason, REASONS.DENYLISTED);
+  // Every rejection carries the stable code apps show (the REASONS key).
+  assert.deepEqual(sanctionedResult.rejected.map((r) => r.code), ["SANCTIONED", "SANCTIONED"]);
+  assert.equal(blockedResult.rejected[0].code, "ISSUER_BLOCKED");
+  assert.equal(deniedResult.rejected[0].code, "DENYLISTED");
 });
 
 test("per-deposit cap: exactly the cap passes, one unit more does not", () => {

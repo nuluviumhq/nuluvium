@@ -62,7 +62,7 @@ test("piece sizes fall into buckets by whole USDG", () => {
 });
 
 test("clean-funds tally with reasons and the deposits still waiting", () => {
-  assert.deepEqual(aggregate(base).cleanFunds, { approved: 3, rejected: 1, reasons: { "deposit above the per-deposit cap": 1 }, waiting: 1 });
+  assert.deepEqual(aggregate(base).cleanFunds, { approved: 3, rejected: 1, reasons: { "deposit above the per-deposit cap": 1 }, codes: { OVER_DEPOSIT_CAP: 1 }, waiting: 1 });
 });
 
 test("relayer fees cover every swap; JSON output has no bigints", () => {
