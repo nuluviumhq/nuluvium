@@ -23,7 +23,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { formatUnits } from "viem";
 import { z } from "zod";
-import { depositAccount, depositUsdg, erc20Abi, keysFromMnemonic, planPieces, walletClientFor } from "../../sdk/src/index.ts";
+import { depositAccount, depositSizeAdvice, depositUsdg, erc20Abi, keysFromMnemonic, planPieces, walletClientFor } from "../../sdk/src/index.ts";
 import { noteApproval, pickNote } from "./approval.ts";
 import { ensureArtifacts, missingArtifacts } from "./artifacts.ts";
 import { depositProblem } from "./deposit.ts";
@@ -95,6 +95,14 @@ const store = new OrderStore(home, networkName);
 const engine = new Engine(network, keys, store, artifacts, prepareProver);
 
 const usdg = (units: bigint | string) => `${formatUnits(BigInt(units), 6)} USDG`;
+
+/** Deposit-size guidance for an odd amount (advice only; the deposit already went through). */
+function sizeNote(amount: bigint): { sizeNote?: string } {
+  const advice = depositSizeAdvice(amount);
+  if (advice.common || advice.split.length === 0) return {};
+  const split = advice.split.map((size) => formatUnits(size, 6)).join(" + ");
+  return { sizeNote: `${usdg(amount)} is not a common size. Next time, deposits of ${split} USDG blend in better while the pool is small.` };
+}
 const clock = (unix: number) => new Date(unix * 1000).toISOString().replace(".000Z", "Z");
 const reply = (body: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(body, null, 2) }] });
 const failure = (message: string) => ({ content: [{ type: "text" as const, text: message }], isError: true });
@@ -182,7 +190,7 @@ server.registerTool(
   {
     title: "Deposit USDG into the shielded balance",
     description:
-      "Moves USDG from the agent's deposit wallet (see get_balance) into its shielded balance as a new note. The deposit itself is public: anyone can see this wallet deposited this amount; what the note pays for later is not linked to it. Sends two transactions (approve, deposit) and waits for them. The new note can pay for orders once the clean-funds check approves it, usually within a minute. Up to 1,000 USDG per deposit until the audit.",
+      "Moves USDG from the agent's deposit wallet (see get_balance) into its shielded balance as a new note. The deposit itself is public: anyone can see this wallet deposited this amount; what the note pays for later is not linked to it. Sends two transactions (approve, deposit) and waits for them. The new note can pay for orders once the clean-funds check approves it, usually within a minute. Up to 1,000 USDG per deposit until the audit. Prefer a common size (10, 25, 50, 100, 250, 500 or 1,000 USDG): while few people use the pool, an odd amount is easier to pick out; split an odd amount into several deposits of common sizes.",
     inputSchema: {
       usdgAmount: z.number().positive().describe("USDG to deposit (1 to 1,000)"),
     },
@@ -199,6 +207,7 @@ server.registerTool(
       from: depositWallet.address,
       transaction: `${network.explorer}/tx/${tx}`,
       next: "Wait about a minute for the clean-funds check, then route_order can pay from this note.",
+      ...sizeNote(amount),
     });
   }),
 );

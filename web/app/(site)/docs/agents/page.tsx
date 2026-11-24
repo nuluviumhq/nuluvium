@@ -23,7 +23,7 @@ const MCP_CONFIG = `{
 
 const TOOLS = [
   { name: "get_balance", input: "none", does: "Shielded USDG per deposit with its status (approved, waiting, rejected), which deposits are busy, the deposit wallet's USDG and ETH, the tradable tokens" },
-  { name: "deposit", input: "usdgAmount (1 to 1,000)", does: "Moves USDG from the deposit wallet into the shielded balance as a new deposit (public); usable once approved, usually within a minute" },
+  { name: "deposit", input: "usdgAmount (1 to 1,000)", does: "Moves USDG from the deposit wallet into the shielded balance as a new deposit (public); usable once approved, usually within a minute. A common size (10, 25, 50, 100, 250, 500, 1,000) blends in better; an odd amount gets a note with a split" },
   { name: "route_order", input: "token, usdgAmount, pieces (1 to 20, default 5), windowMinutes (1 to 1440, default 10), maxSlippagePercent (default 1)", does: "Plans the pieces, stores the order and sends the pieces in the background; returns at once" },
   { name: "cancel_order", input: "orderId", does: "Cancels the pieces not sent yet" },
   { name: "get_orders", input: "onlyOpen", does: "Orders and the status of every piece" },

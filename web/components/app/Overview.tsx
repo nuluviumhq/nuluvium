@@ -16,6 +16,7 @@ import { MarketHours } from "./MarketHours";
 import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { DEPOSIT_CAP, friendlyError, useSession } from "./session";
 import { REASON_COPY } from "@/lib/reasons";
+import { depositSizeAdvice } from "@nuluvium/sdk/sizes";
 
 const TILE_COUNT = 45;
 const APPROVAL_LABEL = { approved: "Approved", waiting: "Checking, about a minute", rejected: "Not approved" } as const;
@@ -82,6 +83,7 @@ export function Overview() {
   };
 
   const amount = parseUsdg(amountText);
+  const sizeAdvice = amount ? depositSizeAdvice(amount) : null;
   const onDeposit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!amount) return toast("Enter an amount above zero.");
@@ -326,6 +328,21 @@ export function Overview() {
                 <button className="button full" type="submit" disabled={Boolean(working)}>{working ? "Working…" : "Deposit"}</button>
               </form>
               {working ? <p className="reason" aria-live="polite">{working}</p> : null}
+              {/* Deposit-size guidance: an odd amount is easier to pick out while few people use the pool. */}
+              {sizeAdvice && !sizeAdvice.common ? (
+                <p className="fine">
+                  Common sizes (10, 25, 50, 100, 250, 500, 1,000) blend in better while the pool is small.{" "}
+                  {sizeAdvice.split.length > 0 ? (
+                    <>
+                      Deposit {sizeAdvice.split.map((size) => formatUsdg(size)).join(" + ")} as separate deposits
+                      {sizeAdvice.rest > 0n ? `, ${formatUsdg(sizeAdvice.rest)} stays in your wallet` : ""}, or{" "}
+                      <button className="text-link" type="button" onClick={() => setAmountText(unitsToInput(sizeAdvice.split[0]!))}>use {formatUsdg(sizeAdvice.split[0]!)}</button>.
+                    </>
+                  ) : (
+                    "Deposit 10 tUSDG or more."
+                  )}
+                </p>
+              ) : null}
               {funds && funds.eth === 0n ? (
                 <p className="fine">Your wallet needs a little testnet ETH for gas. Get test funds sends some with the test USDG, once a day.</p>
               ) : null}

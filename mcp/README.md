@@ -57,7 +57,7 @@ new testnet mnemonic, never a real wallet's.
 | Tool | Does |
 |---|---|
 | `get_balance` | Shielded USDG per note with its status (approved, waiting, rejected), the deposit wallet, tradable tokens |
-| `deposit` | Moves USDG from the deposit wallet into the shielded balance (1 to 1,000 USDG) |
+| `deposit` | Moves USDG from the deposit wallet into the shielded balance (1 to 1,000 USDG; common sizes such as 100 blend in better) |
 | `route_order` | Buys a stock token in pieces over a time window; returns at once, pieces go out in the background |
 | `cancel_order` | Cancels pieces not sent yet |
 | `get_orders` | Orders and the status of every piece |

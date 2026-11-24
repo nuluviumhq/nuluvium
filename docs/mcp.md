@@ -7,7 +7,7 @@ order schedule never leave that machine; pieces go out through the Nuluvium rela
 | Tool | Input | Does |
 |---|---|---|
 | `get_balance` | – | Shielded USDG per note with its ASP status (approved, waiting, rejected + reason), total and approved total, which notes are busy, the deposit wallet (address, USDG, ETH), tradable tokens |
-| `deposit` | usdgAmount (1–1,000) | Approve + deposit from the deposit wallet into a new note; waits for both transactions |
+| `deposit` | usdgAmount (1–1,000) | Approve + deposit from the deposit wallet into a new note; waits for both transactions. An amount that is not a common size (10, 25, 50, 100, 250, 500, 1,000) gets a `sizeNote` with a split into common sizes (advice only) |
 | `route_order` | token, usdgAmount, pieces (1–20, default 5), windowMinutes (1–1440, default 10), maxSlippagePercent (0.1–5, default 1, below a fresh quote) | Plans random piece sizes and times, stores the order, sends pieces in the background; returns at once |
 | `cancel_order` | orderId | Cancels pieces not sent yet |
 | `get_orders` | onlyOpen | Orders and the status of every piece |

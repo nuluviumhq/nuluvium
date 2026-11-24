@@ -37,5 +37,6 @@ export {
 export { quoteSwap, quotedBuy, quotedSellMinimum, quoterAbi, withSlippage } from "./quote.ts";
 export { executePiece, randomNonce, runPlan, type BuyTarget, type PieceResult, type RoutingContext, type RoutingEvent } from "./routing.ts";
 export { depositUsdg } from "./deposit.ts";
+export { COMMON_DEPOSIT_SIZES, depositSizeAdvice, type DepositSizeAdvice } from "./sizes.ts";
 export { proveRagequit, ragequitAbi, ragequitNote, sellAtQuote, sellFromFresh, type RagequitProof } from "./exit.ts";
 export { chainFor, erc20Abi, publicClientFor, walletClientFor } from "./chain.ts";
