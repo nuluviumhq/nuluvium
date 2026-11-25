@@ -2,15 +2,18 @@
 
 // Public stats: totals over everyone, read from the stats Worker (stats/, refreshed every 10
 // minutes from chain events, the ASP's approved set and the relayer). Nothing here is per user:
-// no addresses, no list of deposits or pieces. Existing classes only (box, ledger, rows); the
-// piece-size bars are inline widths.
+// no addresses, no list of deposits or pieces. Layout 5A: one tabbed panel (Pieces, Deposits,
+// Relayers), each with a column chart and its figures as a numbered list.
 
 import { useEffect, useState } from "react";
+import { PanelTabs } from "@/components/layoutsClient";
 import { REASON_COPY, reasonCode, type ReasonCode } from "@/lib/reasons";
 
 const STATS_URL = "https://stats.nuluvium.com/stats";
 /** Below this many approved deposits, the page says plainly that privacy is weak. */
 const SMALL_CROWD = 50;
+/** Each relayer sends one Telegram alert below this gas balance (relayer/src, gas float alert). */
+const GAS_ALERT_ETH = 0.0015;
 
 type Amount = string; // token units as a decimal string (USDG: 6 decimals; ETH: 18)
 interface Window {
@@ -93,12 +96,35 @@ function Figures({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   );
 }
 
-function Box({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+interface Column {
+  label: string;
+  value: number;
+  /** Shown above the column (the value, formatted). */
+  shown: string;
+}
+
+/**
+ * Column chart: heights relative to the largest column; an optional dashed line marks a threshold
+ * (same unit as the values). Decorative for screen readers: the same figures are in the list below.
+ */
+function ColumnChart({ columns, caption, line }: { columns: Column[]; caption: string; line?: { value: number; label: string } }) {
+  const top = Math.max(...columns.map((column) => column.value), line?.value ?? 0) || 1;
   return (
-    <section className="box">
-      <div className="box-head"><h2 className="title">{title}</h2>{note ? <span className="mono soft">{note}</span> : null}</div>
-      {children}
-    </section>
+    <figure className="stat-chart">
+      <div className="stat-columns" aria-hidden="true">
+        {line ? <span className="stat-line" style={{ bottom: `${(line.value / top) * 100}%` }}><span>{line.label}</span></span> : null}
+        {columns.map((column, index) => (
+          <div key={column.label} className="stat-column" style={{ ["--h" as string]: `${column.value ? Math.max(2, (column.value / top) * 100) : 0}%`, ["--i" as string]: index }}>
+            <span className="stat-value">{column.shown}</span>
+            <span className="stat-bar" />
+          </div>
+        ))}
+      </div>
+      <div className="stat-labels mono" aria-hidden="true">
+        {columns.map((column) => <span key={column.label}>{column.label}</span>)}
+      </div>
+      <figcaption className="mono soft">{caption}</figcaption>
+    </figure>
   );
 }
 
@@ -122,8 +148,103 @@ export function StatsBoard() {
   }
 
   const approved = stats.crowd.approvedDeposits;
-  const largestBucket = Math.max(1, ...stats.pieceSizes.map((bucket) => bucket.pieces));
   const tokens = Object.entries(stats.routed.all.byToken);
+  const relayers = stats.relayer.relayers?.length
+    ? stats.relayer.relayers.map((entry, index) => ({ name: entry.name ?? `relayer ${index + 1}`, eth: entry.ethBalance }))
+    : [{ name: "relayer", eth: stats.relayer.ethBalance }];
+  const ethNumber = (value: Amount | null) => (value ? Number(BigInt(value)) / 1e18 : 0);
+
+  const pieces = (
+    <div className="stat-tab">
+      <ColumnChart
+        caption="Buy pieces by size, USDG per piece, all time"
+        columns={stats.pieceSizes.map((bucket) => ({ label: bucket.to === null ? `${bucket.from}+` : `${bucket.from}–${bucket.to}`, value: bucket.pieces, shown: count(bucket.pieces) }))}
+      />
+      <div className="stat-figures">
+        <div className="scroll-x">
+          <table className="rows narrow">
+            <thead><tr><th></th><th>24 hours</th><th>7 days</th><th>All time</th></tr></thead>
+            <tbody>
+              <tr><td>Pieces</td><td>{count(stats.routed["24h"].pieces)}</td><td>{count(stats.routed["7d"].pieces)}</td><td>{count(stats.routed.all.pieces)}</td></tr>
+              <tr><td>USDG routed</td><td>{usdg(stats.routed["24h"].usdg)}</td><td>{usdg(stats.routed["7d"].usdg)}</td><td>{usdg(stats.routed.all.usdg)}</td></tr>
+              <tr><td>Sells</td><td>{count(stats.routed["24h"].sells)}</td><td>{count(stats.routed["7d"].sells)}</td><td>{count(stats.routed.all.sells)}</td></tr>
+              <tr><td>USDG from sells</td><td>{usdg(stats.routed["24h"].sellUsdg)}</td><td>{usdg(stats.routed["7d"].sellUsdg)}</td><td>{usdg(stats.routed.all.sellUsdg)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        {tokens.length > 0 ? (
+          <p className="fine">By token, all time: {tokens.map(([symbol, item]) => `${symbol} ${count(item.pieces)} pieces, ${usdg(item.usdg)} USDG`).join(" · ")}.</p>
+        ) : null}
+        <p className="fine">Orders are split into pieces of random size, so no single trade shows the order&#39;s full amount.</p>
+      </div>
+    </div>
+  );
+
+  const deposits = (
+    <div className="stat-tab">
+      {stats.cleanFunds ? (
+        <ColumnChart
+          caption="Deposits by clean-funds decision"
+          columns={[
+            { label: "Approved", value: stats.cleanFunds.approved, shown: count(stats.cleanFunds.approved) },
+            { label: "Not approved", value: stats.cleanFunds.rejected, shown: count(stats.cleanFunds.rejected) },
+            { label: "Waiting", value: stats.cleanFunds.waiting, shown: count(stats.cleanFunds.waiting) },
+          ]}
+        />
+      ) : (
+        <p className="fine">The approved set could not be read in the last count.</p>
+      )}
+      <div className="stat-figures">
+        <Figures
+          rows={[
+            ["Approved deposits", count(approved)],
+            ["Wallets behind them", count(stats.crowd.approvedDepositors)],
+            ["All deposits", count(stats.crowd.deposits)],
+            ["In the pool now", <>{usdg(stats.poolUsdg)} <small>USDG</small></>],
+            ["Deposited, all time", <>{usdg(stats.flows.deposited)} <small>USDG</small></>],
+            ["Spent on pieces", <>{usdg(stats.flows.withdrawnToPieces)} <small>USDG</small></>],
+            ["Taken back", <>{usdg(stats.flows.takenBack)} <small>USDG</small></>],
+          ]}
+        />
+        {stats.cleanFunds && refusalRows(stats.cleanFunds).length > 0 ? (
+          <>
+            <p className="fine">Why not approved, by reason code:</p>
+            <Figures rows={refusalRows(stats.cleanFunds)} />
+          </>
+        ) : null}
+        <p className="fine">
+          A piece hides among the approved deposits it could have come from. {approved !== null && approved < SMALL_CROWD
+            ? `With ${approved} of them, the crowd is small and privacy is weak: timing and amounts can still point a piece to its deposit. It grows with every user.`
+            : "The bigger this number, the harder it is to tell which deposit paid for a piece."}{" "}
+          Deposits and take-backs are public; which deposit paid for which piece is not. Every deposit is checked against sanctions lists, the stock issuer&#39;s blocklist and the beta caps.
+        </p>
+      </div>
+    </div>
+  );
+
+  const relayerTab = (
+    <div className="stat-tab">
+      <ColumnChart
+        caption="Gas balance per relayer, ETH (dashed: the alert line)"
+        line={{ value: GAS_ALERT_ETH, label: `alert ${GAS_ALERT_ETH}` }}
+        columns={relayers.map((relayer) => ({ label: relayer.name, value: ethNumber(relayer.eth), shown: relayer.eth ? formatUnits(relayer.eth, 18, 4) : "–" }))}
+      />
+      <div className="stat-figures">
+        <Figures
+          rows={[
+            ["Gas fee per piece now", stats.relayer.currentFee ? <>{usdg(stats.relayer.currentFee)} <small>USDG</small></> : "–"],
+            ["Gas fees taken, all time", <>{usdg(stats.relayer.feesTotal)} <small>USDG</small></>],
+            ["Protocol fee, 0.1% per piece", stats.protocol ? <>{formatUnits(stats.protocol.feesTotal, 6, 4)} <small>USDG</small></> : "–"],
+            ["Of which to relayers", stats.protocol ? <>{formatUnits(stats.protocol.toRelayers, 6, 4)} <small>USDG</small></> : "–"],
+            ["Of which to the treasury Safe", stats.protocol ? <>{formatUnits(stats.protocol.toTreasury, 6, 4)} <small>USDG</small></> : "–"],
+            ["Transactions sent", count(stats.relayer.swaps)],
+            ...gasRows(stats.relayer),
+          ]}
+        />
+        <p className="fine">The protocol fee counts Router v2 pieces only (from 23 Nov 2026); it is paid in USDG from each piece, half to the relayer that sent it and half to the treasury Safe. Success rate and timing are not measured: the relayers keep no logs on purpose, so failed attempts are not recorded anywhere.</p>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -132,111 +253,14 @@ export function StatsBoard() {
         {stats.caughtUp ? "" : " · still reading the chain's history, totals are partial"}
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 26rem), 1fr))", gap: "1.5rem", marginTop: "1.5rem" }}>
-        <Box title="Crowd size" note="How private it is today">
-          <Figures
-            rows={[
-              ["Approved deposits", count(approved)],
-              ["Wallets behind them", count(stats.crowd.approvedDepositors)],
-              ["All deposits", count(stats.crowd.deposits)],
-            ]}
-          />
-          <p className="fine">
-            A piece hides among the approved deposits it could have come from. {approved !== null && approved < SMALL_CROWD
-              ? `With ${approved} of them, the crowd is small and privacy is weak: timing and amounts can still point a piece to its deposit. It grows with every user.`
-              : "The bigger this number, the harder it is to tell which deposit paid for a piece."}
-          </p>
-        </Box>
-
-        <Box title="Shielded balance" note="USDG in the pool">
-          <Figures
-            rows={[
-              ["In the pool now", <>{usdg(stats.poolUsdg)} <small>USDG</small></>],
-              ["Deposited, all time", <>{usdg(stats.flows.deposited)} <small>USDG</small></>],
-              ["Spent on pieces", <>{usdg(stats.flows.withdrawnToPieces)} <small>USDG</small></>],
-              ["Taken back", <>{usdg(stats.flows.takenBack)} <small>USDG</small></>],
-            ]}
-          />
-          <p className="fine">Deposits and take-backs are public; which deposit paid for which piece is not.</p>
-        </Box>
-
-        <Box title="Routed" note="Buy pieces through the relayer">
-          <div className="scroll-x">
-            <table className="rows narrow">
-              <thead><tr><th></th><th>24 hours</th><th>7 days</th><th>All time</th></tr></thead>
-              <tbody>
-                <tr><td>Pieces</td><td>{count(stats.routed["24h"].pieces)}</td><td>{count(stats.routed["7d"].pieces)}</td><td>{count(stats.routed.all.pieces)}</td></tr>
-                <tr><td>USDG routed</td><td>{usdg(stats.routed["24h"].usdg)}</td><td>{usdg(stats.routed["7d"].usdg)}</td><td>{usdg(stats.routed.all.usdg)}</td></tr>
-                <tr><td>Sells</td><td>{count(stats.routed["24h"].sells)}</td><td>{count(stats.routed["7d"].sells)}</td><td>{count(stats.routed.all.sells)}</td></tr>
-                <tr><td>USDG from sells</td><td>{usdg(stats.routed["24h"].sellUsdg)}</td><td>{usdg(stats.routed["7d"].sellUsdg)}</td><td>{usdg(stats.routed.all.sellUsdg)}</td></tr>
-              </tbody>
-            </table>
-          </div>
-          {tokens.length > 0 ? (
-            <p className="fine">By token, all time: {tokens.map(([symbol, item]) => `${symbol} ${count(item.pieces)} pieces, ${usdg(item.usdg)} USDG`).join(" · ")}.</p>
-          ) : null}
-        </Box>
-
-        <Box title="Piece sizes" note="Buy pieces, all time">
-          <div className="scroll-x">
-            <table className="rows narrow">
-              <thead><tr><th>USDG per piece</th><th style={{ width: "55%" }}></th><th>Pieces</th></tr></thead>
-              <tbody>
-                {stats.pieceSizes.map((bucket) => (
-                  <tr key={bucket.from}>
-                    <td>{bucket.to === null ? `${bucket.from}+` : `${bucket.from} to ${bucket.to}`}</td>
-                    <td style={{ textAlign: "left" }}>
-                      <span
-                        aria-hidden="true"
-                        style={{ display: "block", height: "0.6rem", borderRadius: "0.25rem", background: "var(--green)", opacity: bucket.pieces ? 1 : 0.12, width: `${bucket.pieces ? Math.max(4, (bucket.pieces / largestBucket) * 100) : 100}%` }}
-                      />
-                    </td>
-                    <td>{count(bucket.pieces)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="fine">Orders are split into pieces of random size, so no single trade shows the order&#39;s full amount.</p>
-        </Box>
-
-        <Box title="Clean-funds check" note="Approved-set provider">
-          {stats.cleanFunds ? (
-            <>
-              <Figures
-                rows={[
-                  ["Approved", count(stats.cleanFunds.approved)],
-                  ["Not approved", count(stats.cleanFunds.rejected)],
-                  ["Waiting for the check", count(stats.cleanFunds.waiting)],
-                ]}
-              />
-              {refusalRows(stats.cleanFunds).length > 0 ? (
-                <>
-                  <p className="fine">Why not approved, by reason code:</p>
-                  <Figures rows={refusalRows(stats.cleanFunds)} />
-                </>
-              ) : null}
-            </>
-          ) : (
-            <p className="fine">The approved set could not be read in the last count.</p>
-          )}
-          <p className="fine">Every deposit is checked against sanctions lists, the stock issuer&#39;s blocklist and the beta caps before it can pay for a piece.</p>
-        </Box>
-
-        <Box title="Relayers" note="Bonded in the registry; the app falls back to another">
-          <Figures
-            rows={[
-              ["Gas fee per piece now", stats.relayer.currentFee ? <>{usdg(stats.relayer.currentFee)} <small>USDG</small></> : "–"],
-              ["Gas fees taken, all time", <>{usdg(stats.relayer.feesTotal)} <small>USDG</small></>],
-              ["Protocol fee, 0.1% per piece", stats.protocol ? <>{formatUnits(stats.protocol.feesTotal, 6, 4)} <small>USDG</small></> : "–"],
-              ["Of which to relayers", stats.protocol ? <>{formatUnits(stats.protocol.toRelayers, 6, 4)} <small>USDG</small></> : "–"],
-              ["Of which to the treasury Safe", stats.protocol ? <>{formatUnits(stats.protocol.toTreasury, 6, 4)} <small>USDG</small></> : "–"],
-              ["Transactions sent", count(stats.relayer.swaps)],
-              ...gasRows(stats.relayer),
-            ]}
-          />
-          <p className="fine">The protocol fee counts Router v2 pieces only (from 23 Nov 2026); it is paid in USDG from each piece, half to the relayer that sent it and half to the treasury Safe. Success rate and timing are not measured: the relayers keep no logs on purpose, so failed attempts are not recorded anywhere.</p>
-        </Box>
+      <div className="stat-panel">
+        <PanelTabs
+          tabs={[
+            { label: "Pieces", panel: pieces },
+            { label: "Deposits", panel: deposits },
+            { label: "Relayers", panel: relayerTab },
+          ]}
+        />
       </div>
 
       <p className="fine" style={{ marginTop: "2rem" }}>

@@ -1919,3 +1919,29 @@ html[data-reveal-ready] .tape-screen:not(.revealed) .tape-lines li { opacity: 0;
 @media (prefers-reduced-motion: reduce) {
   .tape-lines .done .what::after { animation: none; }
 }
+
+/* ── Stats panel, layout 5A (2026-11-25): tabs (Pieces / Deposits / Relayers), a column chart and the figures ── */
+.stat-panel { margin-top: 1.5rem; padding: 1.5rem; border-radius: 0.5rem; box-shadow: inset 0 0 0 1px var(--line); }
+.stat-tab { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 2.5rem; align-items: start; }
+.stat-figures { display: grid; gap: 0.25rem; }
+.stat-chart { margin: 0; display: grid; gap: 0.6rem; }
+.stat-columns { position: relative; display: flex; align-items: flex-end; gap: 0.75rem; height: 16rem; padding-top: 1.5rem; border-bottom: 1px solid var(--green-20); background-image: repeating-linear-gradient(0deg, var(--green-10) 0 1px, transparent 1px 25%); }
+.stat-column { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.stat-bar { width: 100%; max-width: 4rem; height: var(--h); border-radius: 0.25rem 0.25rem 0 0; background: var(--green); transform-origin: bottom; animation: stat-grow 0.7s var(--ease-link) both; animation-delay: calc(var(--i) * 0.06s); }
+.stat-value { margin-bottom: 0.35rem; font-family: var(--mono); font-size: 0.75rem; color: var(--green); font-variant-numeric: tabular-nums; }
+.stat-labels { display: flex; gap: 0.75rem; }
+.stat-labels span { flex: 1; text-align: center; color: var(--green-70); overflow-wrap: anywhere; }
+.stat-line { position: absolute; left: 0; right: 0; z-index: 1; border-top: 1px dashed rgba(160, 40, 30, 0.6); pointer-events: none; }
+.stat-line span { position: absolute; right: 0; top: -1.35rem; font-family: var(--mono); font-size: 0.6875rem; color: rgba(160, 40, 30, 0.8); }
+@keyframes stat-grow { from { transform: scaleY(0); } to { transform: none; } }
+@media (max-width: 900px) {
+  .stat-tab { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
+}
+@media (max-width: 600px) {
+  .stat-panel { padding: 1rem; }
+  .stat-columns { height: 12rem; gap: 0.4rem; }
+  .stat-labels { gap: 0.4rem; font-size: 0.625rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat-bar { animation: none; }
+}
