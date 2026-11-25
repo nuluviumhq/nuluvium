@@ -1945,3 +1945,44 @@ html[data-reveal-ready] .tape-screen:not(.revealed) .tape-lines li { opacity: 0;
 @media (prefers-reduced-motion: reduce) {
   .stat-bar { animation: none; }
 }
+
+/* ── Overview guide (2026-11-25, web components/app/OnboardGuide.tsx, prototype/walkthrough.html): a step-by-step start at the top ── */
+.desk > .guide { grid-column: 1 / -1; margin-bottom: 0; }
+.guide { margin-bottom: 1rem; padding: 1.5rem 1.75rem; display: grid; gap: 1.5rem; overflow: hidden; transition: opacity 0.4s var(--ease-link), max-height 0.6s var(--ease-link) 0.2s, padding 0.6s var(--ease-link) 0.2s, margin 0.6s var(--ease-link) 0.2s; }
+/* Leaving: fades, then folds to nothing so the page below moves up (no empty gap); then hidden. */
+.guide.leaving { opacity: 0; max-height: 0 !important; padding-top: 0; padding-bottom: 0; margin-bottom: 0; pointer-events: none; }
+.guide-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.guide-head .mono { color: var(--green); }
+.guide-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.guide-steps li { position: relative; display: grid; justify-items: start; gap: 0.6rem; }
+/* The line between dots: green once the step before it is done. */
+.guide-steps li:not(:last-child)::after { content: ""; position: absolute; left: 2.25rem; right: 0.5rem; top: 0.875rem; height: 2px; background: var(--green-10); }
+.guide-steps li.done::after { background: var(--green); }
+.guide-steps .dot { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--green-20); font-family: var(--mono); font-size: 0.75rem; color: var(--green-70); transition: background-color 0.3s, box-shadow 0.3s; }
+.guide-steps .dot i { font-style: normal; }
+.guide-steps .current .dot { box-shadow: inset 0 0 0 2px var(--green), 0 0 0 4px var(--green-10); color: var(--green); }
+.guide-steps .done .dot { background: var(--green); box-shadow: none; color: var(--white); }
+.guide-steps .done .dot i { font-size: 0; }
+.guide-steps .done .dot i::before { content: "✓"; font-size: 0.8125rem; }
+.guide-steps .name { font-size: 0.9375rem; color: var(--green-70); }
+.guide-steps .current .name { color: var(--green); font-weight: 500; }
+.guide-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.5rem; align-items: center; padding: 1.25rem 1.5rem; border-radius: 0.5rem; background: var(--cream); animation: fade-in 0.4s var(--ease-link) both; }
+.guide-body .title { color: var(--green); }
+.guide-body p { margin-top: 0.35rem; color: var(--green-70); max-width: 40rem; }
+.guide-body.done { background: var(--green); }
+.guide-body.done .title, .guide-body.done p { color: var(--cream); }
+.guide-actions { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; justify-content: flex-end; }
+.guide-wait { position: relative; display: inline-flex; align-items: center; gap: 0.6rem; color: var(--green); }
+.guide-wait .pulse { position: relative; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--green); animation: now-pulse 2s ease-out infinite; }
+/* "Show me": the real control glows for a moment. */
+.spotlit { position: relative; z-index: 5; box-shadow: 0 0 0 4px var(--cream), 0 0 0 7px var(--green), 0 0 0 9999px rgba(12, 54, 40, 0.18); transition: box-shadow 0.4s var(--ease-link); }
+@media (max-width: 760px) {
+  .guide { padding: 1.25rem 1rem; }
+  .guide-steps .name { font-size: 0.75rem; }
+  .guide-body { grid-template-columns: minmax(0, 1fr); padding: 1rem; }
+  .guide-actions { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-wait .pulse { animation: none; }
+  .spotlit { transition: none; }
+}

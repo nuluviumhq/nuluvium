@@ -13,6 +13,7 @@ import { isOpen, orderStatus, piecesDone } from "@/lib/orders";
 import { shortAddress, type WalletStep } from "@/lib/wallet";
 import { Dialog } from "./Dialog";
 import { MarketHours } from "./MarketHours";
+import { OnboardGuide } from "./OnboardGuide";
 import { RecoveryPhraseButton } from "./RecoveryPhrase";
 import { DEPOSIT_CAP, friendlyError, useSession } from "./session";
 import { REASON_COPY } from "@/lib/reasons";
@@ -121,7 +122,6 @@ export function Overview() {
   // Getting started: derived from the chain and this browser, so it ticks itself off.
   const notes = balance.value?.notes ?? [];
   const approvedTotal = balance.value?.approved ?? 0n;
-  const awaitingApproval = notes.some((note) => note.approval === "waiting");
   const steps = {
     funds: notes.length > 0 || Boolean(funds && funds.usdg > 0n && funds.eth > 0n),
     deposit: notes.length > 0,
@@ -137,13 +137,19 @@ export function Overview() {
     setOnboardHidden(true);
     try { window.localStorage.setItem(ONBOARD_HIDDEN_KEY, "1"); } catch { /* storage blocked: hidden for this visit */ }
   };
-  const showOnboard = loggedIn && !onboardHidden && current !== null && balance.state === "ready" && funds !== null;
-  const stepClass = (id: keyof typeof steps) => (steps[id] ? "done" : current === id ? "current" : undefined);
+  // The guide stays on screen after the last step only to say so and fold away (OnboardGuide).
+  const [guideSeen, setGuideSeen] = useState(false);
+  const guideReady = loggedIn && !onboardHidden && balance.state === "ready" && funds !== null;
+  useEffect(() => {
+    if (guideReady && current !== null) setGuideSeen(true);
+  }, [guideReady, current]);
+  const showOnboard = guideReady && (current !== null || guideSeen);
+  const finishGuide = useCallback(() => setGuideSeen(false), []);
+  const checkingDeposit = notes.find((note) => note.approval === "waiting")?.depositIndex.toString() ?? null;
 
   // Balance card figures: total, and how much of it can be spent now.
   const ready = balance.value?.approved;
   const checking = notes.filter((note) => note.approval === "waiting").reduce((sum, note) => sum + note.value, 0n);
-  const doneCount = Object.values(steps).filter(Boolean).length;
 
   const pieceTiles = (
     <div className="tiles" role="img" aria-label="Pieces of your orders">
@@ -181,6 +187,19 @@ export function Overview() {
         </>
       ) : (
         <div className="desk">
+          {showOnboard ? (
+            <OnboardGuide
+              current={current}
+              working={Boolean(working)}
+              depositLabel={amountText}
+              canDeposit={Boolean(amount)}
+              checking={checkingDeposit}
+              onGetFunds={getTestFunds}
+              onDeposit={onDeposit}
+              onHide={hideOnboard}
+              onFinished={finishGuide}
+            />
+          ) : null}
           {/* Left: what you read. */}
           <div className="desk-main">
             <dl className="stat-row">
@@ -231,7 +250,7 @@ export function Overview() {
               )}
             </section>
 
-            <section className="app-card" aria-label="Deposits">
+            <section className="app-card" id="guide-target-deposits" aria-label="Deposits">
               <div className="card-head"><h2 className="title">Deposits</h2><span className="mono soft">Public</span></div>
               <div className="scroll-x">
                 <table className="rows narrow">
@@ -290,13 +309,13 @@ export function Overview() {
                 {ready === undefined ? <span className="skeleton">…</span> : formatUsdg(ready)} ready{checking > 0n ? ` · ${formatUsdg(checking)} being checked` : ""}
                 <br />Linked to your wallet: 0. Trades go out from fresh addresses.
               </p>
-              <Link className="button full" href="/app/trade">New private order</Link>
+              <Link className="button full" id="guide-target-order" href="/app/trade">New private order</Link>
             </section>
 
-            <section className="app-card" aria-label="Deposit">
+            <section className="app-card" id="guide-target-deposit" aria-label="Deposit">
               <div className="card-head">
                 <h2 className="title">Deposit</h2>
-                <button className="text-link mono" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
+                <button className="text-link mono" id="guide-target-funds" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
               </div>
               <form className="form-rows flush" onSubmit={onDeposit}>
                 <label>
@@ -351,64 +370,6 @@ export function Overview() {
               <RecoveryPhraseButton />
             </section>
 
-            {showOnboard ? (
-              <section className="app-card onboard-card" aria-label="Getting started">
-                <div className="card-head">
-                  <h2 className="title">Getting started</h2>
-                  <span className="mono soft">{doneCount} of 4 · <button className="text-link mono soft" type="button" onClick={hideOnboard}>Hide</button></span>
-                </div>
-                <ol className="check-list">
-                  <li className={stepClass("funds")}>
-                    <span className="tick" aria-hidden="true"></span>
-                    <div>
-                      <strong>Get test funds</strong>
-                      {current === "funds" ? (
-                        <>
-                          <p>100 test USDG and a little test ETH for gas, free, once a day. Nothing to sign.</p>
-                          <button className="button" type="button" disabled={Boolean(working)} onClick={getTestFunds}>Get test funds</button>
-                        </>
-                      ) : null}
-                    </div>
-                  </li>
-                  <li className={stepClass("deposit")}>
-                    <span className="tick" aria-hidden="true"></span>
-                    <div>
-                      <strong>Deposit</strong>
-                      {current === "deposit" ? (
-                        <>
-                          <p>Move tUSDG into your shielded balance. Your wallet asks twice the first time: allow, then deposit.</p>
-                          <button className="button" type="button" disabled={Boolean(working) || !amount} onClick={onDeposit}>Deposit {amountText} tUSDG</button>
-                        </>
-                      ) : null}
-                    </div>
-                  </li>
-                  <li className={stepClass("approved")}>
-                    <span className="tick" aria-hidden="true"></span>
-                    <div>
-                      <strong>Clean-funds check</strong>
-                      {current === "approved" ? (
-                        <>
-                          <p>Each deposit is checked before it can be spent, usually within a minute. This page updates by itself.</p>
-                          {awaitingApproval ? <span className="state scheduled">Checking…</span> : null}
-                        </>
-                      ) : null}
-                    </div>
-                  </li>
-                  <li className={stepClass("order")}>
-                    <span className="tick" aria-hidden="true"></span>
-                    <div>
-                      <strong>First private order</strong>
-                      {current === "order" ? (
-                        <>
-                          <p>Buy a stock token in pieces, each from its own fresh address.</p>
-                          <Link className="button" href="/app/trade">Route an order</Link>
-                        </>
-                      ) : null}
-                    </div>
-                  </li>
-                </ol>
-              </section>
-            ) : null}
           </aside>
         </div>
       )}
