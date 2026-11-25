@@ -1986,3 +1986,8 @@ html[data-reveal-ready] .tape-screen:not(.revealed) .tape-lines li { opacity: 0;
   .guide-wait .pulse { animation: none; }
   .spotlit { transition: none; }
 }
+
+/* ── Trust band (2026-11-25, landing section 6b): the one promise in one line ── */
+.trust-inner { display: grid; justify-items: center; gap: 1.25rem; text-align: center; padding-block: 2rem; }
+.trust-inner .statement-title { max-width: 52rem; }
+.trust-inner .lead { max-width: 36rem; color: var(--green-70); }

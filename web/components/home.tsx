@@ -227,6 +227,15 @@ export function HomeSections() {
         </div>
       </section>
 
+      {/* 6b. The one promise, in one line (a hard rule of the product: no server keeps the link). */}
+      <section className="screen tone-paper trust-band" data-reveal>
+        <div className="wrap trust-inner">
+          <p className="mono">The one promise</p>
+          <h2 className="statement-title">No server knows which addresses are yours.</h2>
+          <p className="lead">Your keys, notes and fresh addresses stay in your browser or on your agent&#39;s machine. Not on ours.</p>
+        </div>
+      </section>
+
       {/* 7. Check our work: Kalf's still life, everything laid out to inspect. */}
       <section className="screen tone-white" data-reveal>
         <div className="wrap">
