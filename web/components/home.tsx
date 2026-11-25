@@ -170,6 +170,8 @@ export function HomeSections() {
             <article style={{ ["--i" as string]: 0 }}><span className="mono">Private</span><p>From other readers of the chain. Your pieces don&#39;t add up to you.</p></article>
             <article style={{ ["--i" as string]: 1 }}><span className="mono">Not private</span><p>From Robinhood. And each piece is still a public swap.</p></article>
             <article style={{ ["--i" as string]: 2 }}><span className="mono">Testnet</span><p>Not audited yet. Deposits capped at 1,000 USDG each, 25,000 in total.</p></article>
+            {/* Role limits, as in docs/review.md "Keys and what they can do". */}
+            <article style={{ ["--i" as string]: 3 }}><span className="mono">Owner Safe</span><p>Can pause swaps. It can never move your deposit or your tokens.</p></article>
           </div>
           <Link className="text-link mono-link light" href="/docs/security">Read the security notes<ArrowIcon /></Link>
         </div>
