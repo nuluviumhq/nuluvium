@@ -9,6 +9,7 @@ import Link from "next/link";
 import { AgentPrompt, Loupe, OrderSelector, PillarCard, ScrollStage } from "@/components/homeInteractive";
 import { ArrowIcon } from "@/components/icons";
 import { LiveFigures } from "@/components/LiveFigures";
+import { explorerTx } from "@/lib/contracts";
 
 const REPO = "https://github.com/nuluviumhq/nuluvium";
 
@@ -51,6 +52,18 @@ const PROOFS: Array<{ title: string; text: string; link: string; href: string; e
   { title: "Approved sets", text: "Every set of approved deposits, published and checkable against the roots on chain.", link: "approved-sets", href: "https://github.com/nuluviumhq/approved-sets", external: true },
   { title: "Unchanged Privacy Pools", text: "The pool contracts and circuits are Privacy Pools v1.3.0, kept unchanged.", link: "Security", href: "/docs/security", external: false },
 ];
+
+// One real testnet order, written out as its log (testnet/runs/route-2026-11-15T16-34-35-000Z.json):
+// time UTC, piece USDG, fresh address, MSTK received, transaction. Test tokens; facts, not a sample.
+const ORDER_DEPOSIT_TX = "0x8b20e6e3ffbd1114d1ed9cb541ba13475b10229972b5396b55843a3d02e118a3";
+const ORDER_PIECES = [
+  { time: "16:35:25", usdg: "10.99", to: "0x0775…c2c9", stock: "0.0605", tx: "0xb318741a9b560b9f6d6d7e937aacde85f716de668140e32e2c6cb5d3f84b4caf" },
+  { time: "16:36:59", usdg: "9.64", to: "0x9f5c…18fa", stock: "0.0530", tx: "0x32aa4de8f7a23925e1fca037e948321285ee8e09b40a5338017833ace77d97b3" },
+  { time: "16:38:23", usdg: "11.77", to: "0xCd75…4839", stock: "0.0648", tx: "0x8f946b67a7fd8ce6fe95631bf7a40aae82804810ef7a681e793aaa12a288f2e7" },
+  { time: "16:41:02", usdg: "8.86", to: "0xD856…f8b2", stock: "0.0487", tx: "0x116af7d16e17dcda4104dd17bf036d2fcbc5612adbaccd73db52d32de1fdd0d6" },
+  { time: "16:43:34", usdg: "8.74", to: "0x6351…53Cf", stock: "0.0480", tx: "0x0e63684e4848550c60c65659f4ae5afede57647d5d8e7feedec9bace967ebfc3" },
+];
+const short = (hash: string) => `${hash.slice(0, 6)}…${hash.slice(-4)}`;
 
 const AGENT_EXAMPLES = [
   "Buy 500 USDG of NVDA in five pieces over the next two hours.",
@@ -114,6 +127,43 @@ export function HomeSections() {
               <PillarCard key={pillar.n} {...pillar} href="/product" />
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* 3b. One real order: the product shown by what it did, as a dated log (writes itself in when seen). */}
+      <section className="screen tone-white tape-screen" data-reveal>
+        <div className="wrap tape-grid">
+          <div className="tape-copy">
+            <p className="mono">One real order</p>
+            <h2 className="statement-title">One order.<br />Five addresses.</h2>
+            <p className="lead">A 50 USDG buy on testnet, as it happened: five pieces of random size at random times, each from a fresh address the buyer&#39;s wallet never touched.</p>
+            <dl className="tape-facts">
+              <div><dt className="mono">Pieces</dt><dd>5</dd></div>
+              <div><dt className="mono">Window</dt><dd>9 min</dd></div>
+              <div><dt className="mono">Funded by the buyer</dt><dd>0</dd></div>
+            </dl>
+            <a className="text-link" href={explorerTx(ORDER_DEPOSIT_TX)} target="_blank" rel="noreferrer">Check every transaction on the explorer</a>
+          </div>
+          <figure className="tape" aria-label="Log of a real testnet order, 15 November 2026">
+            <div className="tape-bar">
+              <span className="tape-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span className="mono">Robinhood Chain testnet · 15 Nov 2026 · UTC</span>
+            </div>
+            <ol className="tape-lines">
+              <li><time>16:34:35</time><span className="kind">deposit</span><span className="what">50.00 tUSDG into the shielded pool <em>(public: this wallet deposited)</em></span><a href={explorerTx(ORDER_DEPOSIT_TX)} target="_blank" rel="noreferrer">{short(ORDER_DEPOSIT_TX)}</a></li>
+              <li className="plan"><time>16:34:35</time><span className="kind">plan</span><span className="what">5 pieces, random sizes, random times, over 9 minutes</span></li>
+              {ORDER_PIECES.map((piece, index) => (
+                <li key={piece.tx}>
+                  <time>{piece.time}</time>
+                  <span className="kind">piece {index + 1}</span>
+                  <span className="what">{piece.usdg} → <b>{piece.to}</b> +{piece.stock} MSTK</span>
+                  <a href={explorerTx(piece.tx)} target="_blank" rel="noreferrer">{short(piece.tx)}</a>
+                </li>
+              ))}
+              <li className="done"><time>16:43:34</time><span className="kind">done</span><span className="what">5 fresh addresses hold the stock. None was funded by the buyer&#39;s wallet.</span></li>
+            </ol>
+            <figcaption className="fine">Real testnet transactions (test tokens). Each piece paid the 0.10 USDG relayer fee; the deposit stays public, the pieces are not linked to it.</figcaption>
+          </figure>
         </div>
       </section>
 
