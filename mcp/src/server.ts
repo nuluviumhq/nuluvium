@@ -153,7 +153,7 @@ async function walletFunds() {
   return { usdg: usdgBalance, eth };
 }
 
-const server = new McpServer({ name: "nuluvium", version: "0.1.0" });
+const server = new McpServer({ name: "nuluvium", version: "0.2.1" });
 
 server.registerTool(
   "get_balance",

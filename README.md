@@ -124,7 +124,8 @@ web app, each checked end to end on Robinhood Chain testnet ([docs/testnet.md](d
 The relayer model (tNLV, RelayerRegistry, Router v2 with the protocol fee) is deployed on testnet.
 The owner roles (Router owner, registry owner, Entrypoint `OWNER_ROLE`) are held by a Safe 2-of-2
 ([docs/review.md](docs/review.md)). Before mainnet: an independent audit, real stock tokens priced
-from Uniswap quotes, and a second relayer. Deposits are capped until the audit is published.
+from Uniswap quotes, and relayers run by independent operators. Deposits are capped until the audit is published.
+What changed and when: [CHANGELOG.md](CHANGELOG.md).
 
 ## Security
 
